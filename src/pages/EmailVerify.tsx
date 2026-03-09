@@ -1,78 +1,78 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import NavbarPublic from '../components/NavbarPublic'
+import Footer from '../components/Footer'
 
-const theme = {
-  bg: '#e1e3e4',
-  navbar: '#16191b',
-  card: '#1c1f22',
-  accent: '#ffffff',
-  secondary: '#3d4449',
-  dim: '#9aa3a8',
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+const C = {
+  bg:        '#0d0f10',
+  surface:   '#111416',
+  card:      '#161a1d',
+  border:    '#242a2e',
+  borderHi:  '#2e3840',
+  accent:    '#ffffff',
+  dim:       '#8a9aaa',
+  dimHi:     '#b0c0cc',
+  green:     '#00e5a0',
+  greenDim:  'rgba(0,229,160,0.1)',
+  greenGlow: 'rgba(0,229,160,0.25)',
+  red:       '#ff5e5e',
 }
 
-const btnBase: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-  transition: '0.2s',
-}
-
-function EmailVerify() {
+export default function EmailVerify() {
   const navigate = useNavigate()
-  const [digits, setDigits] = useState(['', '', '', '', '', ''])
-  const [error, setError] = useState('')
-  const [shaking, setShaking] = useState(false)
+  const location = useLocation()
+  const redirectTo = (location.state as any)?.from || '/dashboard'
+  const [digits, setDigits]       = useState(['', '', '', '', '', ''])
+  const [error, setError]         = useState('')
+  const [shaking, setShaking]     = useState(false)
+  const [success, setSuccess]     = useState(false)
+  const [resent, setResent]       = useState(false)
+  const [countdown, setCountdown] = useState(0)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  // Если уже верифицирован — сразу в дашборд
+  const email = (() => {
+    try {
+      const token = localStorage.getItem('access_token')!
+      const p = JSON.parse(atob(token.split('.')[1]))
+      return p.email || p.sub || ''
+    } catch { return '' }
+  })()
+
   useEffect(() => {
-    if (localStorage.getItem('email_verified') === 'true') {
-      navigate('/dashboard')
-      return
-    }
-    // Нет токена — на логин
-    if (!localStorage.getItem('access_token')) {
-      navigate('/login')
-      return
-    }
-    // Фокус на первое поле
-    setTimeout(() => inputRefs.current[0]?.focus(), 100)
+    if (localStorage.getItem('email_verified') === 'true') { navigate(redirectTo, { replace: true }); return }
+    if (!localStorage.getItem('access_token'))             { navigate('/login');     return }
+    setTimeout(() => inputRefs.current[0]?.focus(), 120)
   }, [])
+
+  useEffect(() => {
+    if (countdown <= 0) return
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [countdown])
 
   function handleInput(index: number, value: string) {
     if (!/^\d*$/.test(value)) return
-    const next = [...digits]
-    next[index] = value.slice(-1)
-    setDigits(next)
+    const next = [...digits]; next[index] = value.slice(-1); setDigits(next)
     setError('')
-
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus()
-    }
-
-    // Проверяем когда заполнены все 6
+    if (value && index < 5) inputRefs.current[index + 1]?.focus()
     const filled = next.join('')
-    if (filled.length === 6) {
-      verify(filled)
-    }
+    if (filled.length === 6) verify(filled)
   }
 
   function handleKeyDown(index: number, e: React.KeyboardEvent) {
     if (e.key === 'Backspace') {
       if (digits[index]) {
-        const next = [...digits]
-        next[index] = ''
-        setDigits(next)
+        const next = [...digits]; next[index] = ''; setDigits(next)
       } else if (index > 0) {
         inputRefs.current[index - 1]?.focus()
       }
     }
-    if (e.key === 'ArrowLeft' && index > 0) inputRefs.current[index - 1]?.focus()
+    if (e.key === 'ArrowLeft'  && index > 0) inputRefs.current[index - 1]?.focus()
     if (e.key === 'ArrowRight' && index < 5) inputRefs.current[index + 1]?.focus()
   }
 
-  // Вставка из буфера — удобно если код скопировали
   function handlePaste(e: React.ClipboardEvent) {
     e.preventDefault()
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
@@ -80,24 +80,18 @@ function EmailVerify() {
     const next = ['', '', '', '', '', '']
     pasted.split('').forEach((ch, i) => { next[i] = ch })
     setDigits(next)
-    const focusIndex = Math.min(pasted.length, 5)
-    inputRefs.current[focusIndex]?.focus()
+    inputRefs.current[Math.min(pasted.length, 5)]?.focus()
     if (pasted.length === 6) verify(pasted)
   }
 
   function verify(code: string) {
-    // Заглушка: любые 6 цифр — впускаем
     if (code.length === 6) {
-      localStorage.setItem('email_verified', 'true')
-      navigate('/dashboard')
+      setSuccess(true)
+      setTimeout(() => {
+        localStorage.setItem('email_verified', 'true')
+        navigate(redirectTo, { replace: true })
+      }, 700)
     }
-  }
-
-  function handleResend() {
-    // Заглушка
-    setDigits(['', '', '', '', '', ''])
-    setError('')
-    setTimeout(() => inputRefs.current[0]?.focus(), 50)
   }
 
   function handleSubmit() {
@@ -111,150 +105,118 @@ function EmailVerify() {
     verify(code)
   }
 
-  const email = (() => {
-    try {
-      const token = localStorage.getItem('access_token')!
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      return payload.email || payload.sub || ''
-    } catch { return '' }
-  })()
+  function handleResend() {
+    setDigits(['', '', '', '', '', ''])
+    setError('')
+    setResent(true)
+    setCountdown(60)
+    setTimeout(() => { setResent(false); inputRefs.current[0]?.focus() }, 2000)
+  }
+
+  const allFilled = digits.every(d => d !== '')
 
   return (
-    <div style={{ background: theme.bg, minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-
+    <div style={{ background: C.bg, minHeight: '100vh', fontFamily: '"DM Sans", system-ui, sans-serif', color: C.accent, display: 'flex', flexDirection: 'column' }}>
       <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0) }
-          20%       { transform: translateX(-8px) }
-          40%       { transform: translateX(8px) }
-          60%       { transform: translateX(-5px) }
-          80%       { transform: translateX(5px) }
-        }
-        .shake { animation: shake 0.4s ease; }
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes shake   { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+        @keyframes ping    { 75%,100%{transform:scale(2.2);opacity:0} }
+        @keyframes checkIn { from{transform:scale(0.5);opacity:0} to{transform:scale(1);opacity:1} }
+        .digit-input:focus  { border-color: ${C.green} !important; box-shadow: 0 0 0 3px rgba(0,229,160,0.12); }
+        .digit-input.filled { border-color: ${C.green} !important; }
+        .digit-input.error  { border-color: rgba(255,94,94,0.6) !important; }
+        .shake              { animation: shake 0.4s ease; }
       `}</style>
 
-      <nav style={{
-        background: theme.navbar,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 32px',
-        height: 68,
-        borderBottom: `1px solid ${theme.secondary}`,
-      }}>
-        <a href="/" style={{ fontSize: '1.3rem', fontWeight: 800, color: theme.accent, textDecoration: 'none' }}>
-          PRIVAX
-        </a>
-      </nav>
+      <NavbarPublic />
 
-      <main style={{ maxWidth: 480, margin: '0 auto', padding: '40px 16px' }}>
-        <div style={{ background: theme.navbar, borderRadius: 28, padding: '40px 28px', border: `1px solid ${theme.secondary}`, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <main style={{ flex: 1, maxWidth: 460, margin: '0 auto', width: '100%', padding: '72px 24px 80px' }}>
+        <div style={{ background: C.surface, borderRadius: 24, padding: '44px 36px', border: `1px solid ${C.border}`, animation: 'fadeUp 0.5s ease both', textAlign: 'center' }}>
 
-          {/* Иконка */}
           <div style={{
-            width: 64, height: 64,
-            background: theme.card,
-            border: `1px solid ${theme.secondary}`,
-            borderRadius: 20,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.8rem',
-            marginBottom: 24,
+            width: 68, height: 68,
+            background: success ? C.greenDim : C.card,
+            border: `1px solid ${success ? 'rgba(0,229,160,0.3)' : C.border}`,
+            borderRadius: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '1.9rem', margin: '0 auto 24px',
+            transition: 'background 0.3s, border-color 0.3s',
+            boxShadow: success ? `0 0 24px ${C.greenGlow}` : 'none',
           }}>
-            ✉️
+            <span style={{ animation: success ? 'checkIn 0.3s ease' : 'none' }}>
+              {success ? '✓' : '✉️'}
+            </span>
           </div>
 
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: theme.accent, marginBottom: 10, textAlign: 'center' }}>
-            Подтвердите почту
-          </h2>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 900, color: C.accent, marginBottom: 10, letterSpacing: '-0.01em' }}>
+            {success ? 'Почта подтверждена!' : 'Подтвердите почту'}
+          </h1>
 
-          <p style={{ fontSize: '0.85rem', color: theme.dim, textAlign: 'center', lineHeight: 1.6, marginBottom: 32, maxWidth: 300 }}>
-            Мы отправили 6-значный код на{' '}
-            {email
-              ? <span style={{ color: theme.accent, fontWeight: 600 }}>{email}</span>
-              : 'вашу почту'
+          <p style={{ fontSize: '0.88rem', color: C.dim, lineHeight: 1.65, maxWidth: 320, margin: '0 auto 32px' }}>
+            {success
+              ? <span style={{ color: C.green }}>Переходим в личный кабинет...</span>
+              : <>Мы отправили 6-значный код на{' '}
+                  {email ? <span style={{ color: C.accent, fontWeight: 600 }}>{email}</span> : 'вашу почту'}
+                </>
             }
           </p>
 
-          {/* Поля для цифр */}
-          <div
-            className={shaking ? 'shake' : ''}
-            style={{ display: 'flex', gap: 10, marginBottom: 12 }}
-            onPaste={handlePaste}
-          >
-            {digits.map((digit, i) => (
-              <input
-                key={i}
-                ref={el => { inputRefs.current[i] = el }}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={e => handleInput(i, e.target.value)}
-                onKeyDown={e => handleKeyDown(i, e)}
-                style={{
-                  width: 52,
-                  height: 60,
-                  background: theme.card,
-                  border: `1.5px solid ${digit ? theme.accent : theme.secondary}`,
-                  borderRadius: 14,
-                  color: theme.accent,
-                  fontSize: '1.5rem',
-                  fontWeight: 700,
-                  textAlign: 'center',
-                  outline: 'none',
-                  transition: '0.15s',
-                  caretColor: 'transparent',
-                }}
-                onFocus={e => { e.currentTarget.style.borderColor = theme.accent }}
-                onBlur={e => { if (!digit) e.currentTarget.style.borderColor = theme.secondary }}
-              />
-            ))}
-          </div>
+          {!success && (
+            <>
+              <div className={shaking ? 'shake' : ''} style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: error ? 12 : 24 }} onPaste={handlePaste}>
+                {digits.map((digit, i) => (
+                  <input key={i} ref={el => { inputRefs.current[i] = el }}
+                    className={`digit-input${digit ? ' filled' : ''}${error ? ' error' : ''}`}
+                    type="text" inputMode="numeric" maxLength={1} value={digit}
+                    onChange={e => handleInput(i, e.target.value)}
+                    onKeyDown={e => handleKeyDown(i, e)}
+                    style={{ width: 48, height: 58, background: C.card, border: `1.5px solid ${digit ? C.green : C.border}`, borderRadius: 13, color: C.accent, fontSize: '1.5rem', fontWeight: 700, textAlign: 'center', outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', caretColor: 'transparent', fontFamily: 'monospace' }}
+                  />
+                ))}
+              </div>
 
-          {/* Ошибка */}
-          {error && (
-            <div style={{ fontSize: '0.8rem', color: '#ff6b6b', marginBottom: 16, textAlign: 'center' }}>
-              {error}
-            </div>
+              {error && (
+                <div style={{ fontSize: '0.8rem', color: C.red, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <span>⚠</span> {error}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginBottom: 24 }}>
+                {digits.map((d, i) => (
+                  <div key={i} style={{ width: 20, height: 3, borderRadius: 2, background: d ? C.green : C.border, transition: 'background 0.2s' }} />
+                ))}
+              </div>
+
+              <button onClick={handleSubmit} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: allFilled ? C.green : C.card, color: allFilled ? C.bg : C.dim, border: `1px solid ${allFilled ? C.green : C.border}`, borderRadius: 13, padding: '15px 0', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s, color 0.2s, box-shadow 0.2s', boxShadow: allFilled ? `0 0 20px ${C.greenGlow}` : 'none', marginBottom: 20 }}>
+                Подтвердить →
+              </button>
+
+              <div style={{ fontSize: '0.83rem', color: C.dim }}>
+                {resent ? (
+                  <span style={{ color: C.green }}>✓ Код отправлен повторно</span>
+                ) : countdown > 0 ? (
+                  <span>Повторная отправка через <span style={{ color: C.dimHi, fontWeight: 600 }}>{countdown}с</span></span>
+                ) : (
+                  <>Не пришло письмо?{' '}
+                    <button onClick={handleResend} style={{ background: 'none', border: 'none', color: C.accent, fontWeight: 700, fontSize: '0.83rem', cursor: 'pointer', padding: 0 }}>
+                      Отправить снова
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div style={{ marginTop: 24, padding: '14px 16px', background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, display: 'flex', gap: 10, alignItems: 'flex-start', textAlign: 'left' }}>
+                <span style={{ fontSize: '0.9rem', flexShrink: 0, marginTop: 1 }}>💡</span>
+                <p style={{ fontSize: '0.77rem', color: C.dim, lineHeight: 1.55, margin: 0 }}>
+                  Если письмо не пришло, проверьте папку <span style={{ color: C.dimHi }}>Спам</span> или <span style={{ color: C.dimHi }}>Промоакции</span>. Код действителен 15 минут.
+                </p>
+              </div>
+            </>
           )}
-
-          {/* Кнопка подтвердить */}
-          <button
-            onClick={handleSubmit}
-            style={{
-              ...btnBase,
-              width: '100%',
-              background: theme.accent,
-              color: theme.navbar,
-              border: `1px solid ${theme.accent}`,
-              borderRadius: 14,
-              padding: '16px 0',
-              fontWeight: 800,
-              fontSize: '0.85rem',
-              letterSpacing: '0.15em',
-              marginTop: 8,
-              marginBottom: 16,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = theme.accent }}
-            onMouseLeave={e => { e.currentTarget.style.background = theme.accent; e.currentTarget.style.color = theme.navbar }}
-          >
-            ПОДТВЕРДИТЬ
-          </button>
-
-          {/* Повторная отправка */}
-          <p style={{ fontSize: '0.82rem', color: theme.dim, textAlign: 'center' }}>
-            Не получили код?{' '}
-            <button
-              onClick={handleResend}
-              style={{ background: 'none', border: 'none', color: theme.accent, fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', padding: 0 }}
-            >
-              Отправить снова
-            </button>
-          </p>
 
         </div>
       </main>
+
+      <Footer />
     </div>
   )
 }
-
-export default EmailVerify
