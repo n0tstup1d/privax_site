@@ -1,10 +1,8 @@
-import { useToast } from '../components/Toast'
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import NavbarPublic from '../components/NavbarPublic'
-import Footer from '../components/Footer'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { apiFetch } from '../Api'
+const API = import.meta.env.VITE_API_URL || '/api'
 
 const C = {
   bg:        '#0d0f10',
@@ -63,42 +61,52 @@ const perks = [
 
 export default function Register() {
   const navigate = useNavigate()
-  const toast = useToast()
+  const [searchParams] = useSearchParams()
+  const refCode = searchParams.get('ref') || ''
+
+  useEffect(() => {
+    // Сохраняем реф-код чтобы не терялся при навигации
+    if (refCode) localStorage.setItem('ref_code', refCode.toUpperCase())
+  }, [refCode])
+
   const [email, setEmail]         = useState('')
   const [password, setPassword]   = useState('')
   const [password2, setPassword2] = useState('')
   const [showPw, setShowPw]       = useState(false)
   const [showPw2, setShowPw2]     = useState(false)
   const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState('')
+  const [agreeTerms, setAgreeTerms]   = useState(false)
+  const [agreePrivacy, setAgreePrivacy] = useState(false)
 
   useEffect(() => {
-    try {
-      const token = localStorage.getItem('access_token')
-      if (token) {
-        const p = JSON.parse(atob(token.split('.')[1]))
-        if (p.exp > Date.now() / 1000) navigate('/dashboard')
-      }
-    } catch {}
+    if (localStorage.getItem('logged_in')) navigate('/dashboard')
   }, [])
 
   async function handleRegister() {
-    if (!email || !password || !password2) { toast.error('Заполните все поля'); return }
-    if (password !== password2) { toast.error('Пароли не совпадают'); return }
-    if (password.length < 8)    { toast.error('Минимум 8 символов'); return }
-    setLoading(true)
+    if (!email || !password || !password2) { setError('Заполните все поля'); return }
+    if (password !== password2) { setError('Пароли не совпадают'); return }
+    if (password.length < 8)    { setError('Минимум 8 символов'); return }
+    if (password.length > 32)   { setError('Максимум 32 символа'); return }
+    if (!agreeTerms)   { setError('Необходимо принять условия использования'); return }
+    if (!agreePrivacy) { setError('Необходимо принять политику конфиденциальности'); return }
+    setLoading(true); setError('')
     try {
-      const res  = await fetch(`${API}/auth/register`, {
+      const body: Record<string, string> = { email, password }
+      const savedRef = refCode || localStorage.getItem('ref_code') || ''
+      if (savedRef) body.ref_code = savedRef.toUpperCase()
+      const res  = await apiFetch('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.detail || 'Ошибка регистрации'); return }
-      localStorage.setItem('access_token', data.access_token)
-      localStorage.setItem('refresh_token', data.refresh_token)
+      if (!res.ok) { setError(data.detail || 'Ошибка регистрации'); return }
+      // Токены в httpOnly cookies от бэкенда — флаг для UI
+      localStorage.setItem('logged_in', '1')
       localStorage.removeItem('email_verified')
       navigate('/verify')
-    } catch { toast.error('Сервер недоступен. Попробуйте позже.') }
+    } catch { setError('Сервер недоступен. Попробуйте позже.') }
     finally  { setLoading(false) }
   }
 
@@ -112,17 +120,21 @@ export default function Register() {
   }
 
   return (
-    <div style={{ background: C.bg, minHeight: '100vh', fontFamily: '"DM Sans", system-ui, sans-serif', color: C.accent, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: C.bg, minHeight: '100vh', fontFamily: '"DM Sans", system-ui, sans-serif', color: C.accent }}>
       <style>{`
         @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-        .auth-input:focus { border-color: ${C.green} !important; box-shadow: 0 0 0 3px rgba(0,229,160,0.15), 0 0 12px rgba(0,229,160,0.1) !important; }
+        .auth-input:focus { border-color: ${C.borderHi} !important; }
         .auth-input::placeholder { color: ${C.dim}; }
         .auth-input:-webkit-autofill { -webkit-box-shadow: 0 0 0 40px ${C.card} inset !important; -webkit-text-fill-color: ${C.accent} !important; }
       `}</style>
 
-      <NavbarPublic active="register" />
+      {/* Навбар */}
+      <nav style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '0 48px', height: 66, display: 'flex', alignItems: 'center' }}>
+        <a href="/" style={{ fontSize: '1.2rem', fontWeight: 900, color: C.accent, textDecoration: 'none', letterSpacing: '0.06em', fontFamily: 'monospace' }}>PRIVAX</a>
+      </nav>
 
-      <main style={{ flex: 1, maxWidth: 1000, margin: '0 auto', width: '100%', padding: '40px 16px 64px', display: 'flex', gap: 48, alignItems: 'flex-start', justifyContent: 'center' }}>
+      {/* Контент */}
+      <main style={{ maxWidth: 1000, margin: '0 auto', padding: '60px 24px 80px', display: 'flex', gap: 48, alignItems: 'flex-start', justifyContent: 'center' }}>
 
         {/* Левая колонка — преимущества (только десктоп) */}
         <div style={{ flex: 1, maxWidth: 380, paddingTop: 16, display: 'none' }} className="reg-perks">
@@ -147,12 +159,29 @@ export default function Register() {
 
         {/* Форма */}
         <div style={{ width: '100%', maxWidth: 440, animation: 'fadeUp 0.5s ease both' }}>
-          <div style={{ background: C.surface, borderRadius: 24, padding: 'clamp(24px, 5vw, 40px) clamp(20px, 5vw, 36px)', border: `1px solid ${C.border}` }}>
+          <div style={{ background: C.surface, borderRadius: 24, padding: '40px 36px', border: `1px solid ${C.border}` }}>
 
             <div style={{ marginBottom: 28 }}>
               <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: C.accent, marginBottom: 6, letterSpacing: '-0.01em' }}>Создать аккаунт</h1>
               <p style={{ fontSize: '0.88rem', color: C.dim, lineHeight: 1.5 }}>Присоединитесь к Privax — это займёт минуту</p>
             </div>
+
+            {/* Баннер реферального приглашения */}
+            {refCode && (
+              <div style={{ background: C.greenDim, border: `1px solid rgba(0,229,160,0.25)`, borderRadius: 12, padding: '11px 15px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: '1rem' }}>🔗</span>
+                <div>
+                  <div style={{ fontSize: '0.83rem', fontWeight: 700, color: C.green }}>Вас пригласили в Privax — скидка 15% на первый заказ</div>
+                  <div style={{ fontSize: '0.75rem', color: C.dimHi }}>Код приглашения: <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{refCode.toUpperCase()}</span></div>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div style={{ background: C.redDim, border: `1px solid rgba(255,94,94,0.3)`, borderRadius: 12, padding: '11px 15px', marginBottom: 20, fontSize: '0.83rem', color: C.red, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span>⚠</span> {error}
+              </div>
+            )}
 
             {/* Email */}
             <div style={{ marginBottom: 16 }}>
@@ -167,8 +196,9 @@ export default function Register() {
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: '0.8rem', color: C.dimHi, fontWeight: 600, display: 'block', marginBottom: 8 }}>Пароль</label>
               <div style={{ position: 'relative' }}>
-                <input className="auth-input" type={showPw ? 'text' : 'password'} maxLength={30} placeholder="Минимум 8 символов" value={password}
+                <input className="auth-input" type={showPw ? 'text' : 'password'} placeholder="Минимум 8 символов" value={password}
                   onChange={e => setPassword(e.target.value)}
+                  maxLength={32}
                   onKeyDown={e => e.key === 'Enter' && handleRegister()}
                   style={{ ...inputBase, paddingRight: 44 }} />
                 <button onClick={() => setShowPw(v => !v)}
@@ -180,10 +210,10 @@ export default function Register() {
             </div>
 
             {/* Повтор пароля */}
-            <div style={{ marginBottom: 24 }}>
+            <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: '0.8rem', color: C.dimHi, fontWeight: 600, display: 'block', marginBottom: 8 }}>Подтвердите пароль</label>
               <div style={{ position: 'relative' }}>
-                <input className="auth-input" type={showPw2 ? 'text' : 'password'} maxLength={30} placeholder="Повторите пароль" value={password2}
+                <input className="auth-input" type={showPw2 ? 'text' : 'password'} placeholder="Повторите пароль" value={password2}
                   onChange={e => setPassword2(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleRegister()}
                   style={{
@@ -198,6 +228,41 @@ export default function Register() {
               {password2 && password !== password2 && (
                 <div style={{ fontSize: '0.75rem', color: C.red, marginTop: 5 }}>Пароли не совпадают</div>
               )}
+            </div>
+
+            {/* Галочки соглашений */}
+            <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:20 }}>
+              {[
+                { checked: agreeTerms,   set: setAgreeTerms,   text: 'Я принимаю', link: '/terms',   linkText: 'Условия использования' },
+                { checked: agreePrivacy, set: setAgreePrivacy, text: 'Я принимаю', link: '/privacy', linkText: 'Политику конфиденциальности' },
+              ].map((item, i) => (
+                <label key={i} style={{ display:'flex', alignItems:'flex-start', gap:10, cursor:'pointer' }}>
+                  <div
+                    onClick={() => item.set(v => !v)}
+                    style={{
+                      width:18, height:18, borderRadius:5, flexShrink:0, marginTop:1,
+                      border:`2px solid ${item.checked ? C.green : C.border}`,
+                      background: item.checked ? C.green : 'transparent',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      transition:'all 0.15s', cursor:'pointer',
+                    }}
+                  >
+                    {item.checked && (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.bg} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </div>
+                  <span style={{ fontSize:'0.78rem', color:C.dim, lineHeight:1.5 }}>
+                    {item.text}{' '}
+                    <a href={item.link} target="_blank" rel="noopener noreferrer"
+                      style={{ color:C.green, textDecoration:'none', fontWeight:600 }}
+                      onClick={e => e.stopPropagation()}>
+                      {item.linkText}
+                    </a>
+                  </span>
+                </label>
+              ))}
             </div>
 
             {/* Кнопка */}
@@ -230,7 +295,7 @@ export default function Register() {
 
             <p style={{ textAlign: 'center', fontSize: '0.85rem', color: C.dim }}>
               Уже есть аккаунт?{' '}
-              <button onClick={() => navigate('/login')} style={{ background: 'none', border: 'none', color: C.accent, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>Войти</button>
+              <a href="/login" style={{ color: C.accent, textDecoration: 'none', fontWeight: 700 }}>Войти</a>
             </p>
           </div>
         </div>
@@ -239,7 +304,6 @@ export default function Register() {
       <style>{`
         @media (min-width: 720px) { .reg-perks { display: block !important; } }
       `}</style>
-      <Footer />
     </div>
   )
 }

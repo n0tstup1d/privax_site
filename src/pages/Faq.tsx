@@ -262,10 +262,6 @@ export default function FaqPage() {
         .faq-card:hover { border-color: ${C.borderHi} !important; transform: translateY(-2px); }
       `}</style>
 
-      {loggedIn
-        ? <NavbarAuth onLogout={handleLogout} />
-        : <NavbarPublic active="plans" />}
-
       <main style={{ flex: 1, maxWidth: 860, margin: '0 auto', width: '100%', padding: 'clamp(32px, 6vw, 64px) 20px 80px' }}>
 
         {selected ? (
@@ -294,6 +290,37 @@ export default function FaqPage() {
                   onFocus={e => e.target.style.borderColor = C.green}
                   onBlur={e => e.target.style.borderColor = C.border}
                 />
+              </div>
+            </div>
+
+            {/* Баннер инструкций по подключению */}
+            <div
+              onClick={() => navigate('/guides')}
+              style={{
+                background: C.card, borderRadius: 18, border: `1px solid ${C.border}`,
+                padding: '20px 24px', marginBottom: 36, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 16,
+                transition: 'border-color 0.2s, transform 0.2s',
+                animation: 'fadeUp 0.4s ease both',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = C.green; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = C.border; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)' }}
+            >
+              <div style={{
+                width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                background: 'rgba(0,229,160,0.1)', border: '1px solid rgba(0,229,160,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem',
+              }}>📱</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.92rem', fontWeight: 800, color: C.accent, marginBottom: 4 }}>
+                  Как подключиться?
+                </div>
+                <div style={{ fontSize: '0.78rem', color: C.dim, lineHeight: 1.5 }}>
+                  Пошаговые инструкции для iPhone, Android, Windows, macOS и Linux
+                </div>
+              </div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: C.green, whiteSpace: 'nowrap' }}>
+                Открыть →
               </div>
             </div>
 

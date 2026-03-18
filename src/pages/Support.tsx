@@ -335,10 +335,6 @@ export default function SupportPage() {
 
       {showModal && <SupportModal onClose={onModalClose} />}
 
-      {loggedIn
-        ? <NavbarAuth onLogout={handleLogout} />
-        : <NavbarPublic active="support" />}
-
       <main style={{ flex: 1, maxWidth: 720, margin: '0 auto', width: '100%', padding: 'clamp(36px,6vw,64px) 20px 80px' }}>
 
         {/* Hero */}

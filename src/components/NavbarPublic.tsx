@@ -31,6 +31,8 @@ export default function NavbarPublic({ scrollEffect = false }: Props) {
   const navLinks = [
     { label: 'Главная',      key: '/',       fn: () => navigate('/') },
     { label: 'Тарифы',       key: '/plans',  fn: () => navigate('/plans') },
+    { label: 'Приложения',   key: '/apps',   fn: () => navigate('/apps') },
+    { label: 'Инструкции',    key: '/guides', fn: () => navigate('/guides') },
     { label: 'Поддержка',    key: '/support', fn: () => navigate('/support') },
   ]
 

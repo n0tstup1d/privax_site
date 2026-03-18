@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '../components/Toast'
 import { useNavigate, useLocation } from 'react-router-dom'
-import NavbarPublic from '../components/NavbarPublic'
 import Footer from '../components/Footer'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { apiFetch } from '../Api'
+const API = import.meta.env.VITE_API_URL || '/api'
 
 const C = {
   bg:        '#0d0f10',
@@ -42,13 +42,8 @@ export default function Login() {
   const [resetLoading,     setResetLoading]     = useState(false)
 
   useEffect(() => {
-    try {
-      const token = localStorage.getItem('access_token')
-      if (token) {
-        const p = JSON.parse(atob(token.split('.')[1]))
-        if (p.exp > Date.now() / 1000) navigate('/dashboard')
-      }
-    } catch {}
+    // Если уже залогинен (есть флаг) — редирект на дашборд
+    if (localStorage.getItem('logged_in')) navigate('/dashboard')
   }, [])
 
   async function handleLogin() {
@@ -57,14 +52,17 @@ export default function Login() {
     try {
       const form = new URLSearchParams()
       form.append('username', email); form.append('password', password)
-      const res  = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form })
+      const res  = await apiFetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form,
+      })
       const data = await res.json()
       if (!res.ok) { toast.error(data.detail || 'Неверный email или пароль'); return }
-      localStorage.setItem('access_token', data.access_token)
-      localStorage.setItem('refresh_token', data.refresh_token)
-      localStorage.removeItem('email_verified')
+      // Токены теперь в httpOnly cookies — сохраняем только безопасный флаг
+      localStorage.setItem('logged_in', '1')
       const from = (location.state as any)?.from || '/dashboard'
-      navigate('/verify', { state: { from } })
+      navigate(from, { replace: true })
     } catch { toast.error('Сервер недоступен. Попробуйте позже.') }
     finally  { setLoading(false) }
   }
@@ -73,7 +71,7 @@ export default function Login() {
     if (!resetEmail) { toast.error('Введите email'); return }
     setResetLoading(true)
     try {
-      const res = await fetch(`${API}/auth/reset-password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: resetEmail }) })
+      const res = await apiFetch('/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: resetEmail }) })
       if (!res.ok) { const d = await res.json(); toast.error(d.detail || 'Ошибка'); return }
       setStep('reset_code')
     } catch { toast.error('Сервер недоступен') }
@@ -95,7 +93,7 @@ export default function Login() {
     if (!resetNewPw || resetNewPw.length < 8) { toast.error('Минимум 8 символов'); return }
     setResetLoading(true)
     try {
-      const res  = await fetch(`${API}/auth/reset-password/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: resetEmail, code, new_password: resetNewPw }) })
+      const res  = await apiFetch('/auth/reset-password/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: resetEmail, code, new_password: resetNewPw }) })
       const data = await res.json()
       if (!res.ok) { toast.error(data.detail || 'Неверный или истёкший код'); return }
       setStep('reset_done')
@@ -144,7 +142,6 @@ export default function Login() {
         }
       `}</style>
 
-      <NavbarPublic active="login" />
 
       <main style={{ flex: 1, maxWidth: 460, margin: '0 auto', width: '100%', padding: '40px 16px 64px' }}>
         <div style={{ background: C.surface, borderRadius: 24, padding: 'clamp(24px, 5vw, 40px) clamp(20px, 5vw, 36px)', border: `1px solid ${C.border}`, animation: 'fadeUp 0.5s ease both' }}>

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { C } from './Theme'
+import { apiFetch } from '../Api'
 
 interface Props {
   balance?: number
@@ -244,6 +245,8 @@ export default function NavbarAuth({ balance, onLogout }: Props) {
   const navLinks = [
     { label: 'Главная',        key: '/',          fn: () => navigate('/') },
     { label: 'Тарифы',         key: '/plans',     fn: () => navigate('/plans') },
+    { label: 'Приложения',     key: '/apps',      fn: () => navigate('/apps') },
+    { label: 'Инструкции',      key: '/guides',    fn: () => navigate('/guides') },
     { label: 'Личный кабинет', key: '/dashboard', fn: () => navigate('/dashboard') },
     { label: 'Вопросы',        key: '/faq',       fn: () => navigate('/faq') },
     { label: 'Поддержка',      key: '/support',   fn: () => navigate('/support') },
@@ -254,21 +257,14 @@ export default function NavbarAuth({ balance, onLogout }: Props) {
   const markAllRead = async () => {
     setNotifications(ns => ns.map(n => ({ ...n, read: true })))
     try {
-      const token = localStorage.getItem('access_token')
-      await fetch(`${API}/users/notifications/read-all`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      await apiFetch('/users/notifications/read-all', { method: 'POST' })
     } catch {}
   }
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token')
-    if (!token) return
+    if (!localStorage.getItem('logged_in')) return
     setNotifsLoading(true)
-    fetch(`${API}/users/notifications`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    apiFetch('/users/notifications')
       .then(r => r.ok ? r.json() : [])
       .then((data: any[]) => setNotifications(
         Array.isArray(data) ? data.map(n => ({
@@ -378,12 +374,6 @@ export default function NavbarAuth({ balance, onLogout }: Props) {
 
           <span style={{ width: 1, height: 16, background: C.border, display: 'block', flexShrink: 0 }} />
 
-          {balance !== undefined && (
-            <span style={{ fontSize: '0.82rem', color: C.dim, whiteSpace: 'nowrap' }}>
-              <strong style={{ color: C.accent }}>{balance.toLocaleString('ru-RU')} ₽</strong>
-            </span>
-          )}
-
           <BellButton refProp={bellRefDt} />
 
           <button onClick={onLogout}
@@ -409,11 +399,6 @@ export default function NavbarAuth({ balance, onLogout }: Props) {
       {/* Mobile menu */}
       {menuOpen && (
         <div style={{ position: 'fixed', top: 66, left: 0, right: 0, zIndex: 199, background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '12px 20px 20px' }}>
-          {balance !== undefined && (
-            <div style={{ padding: '10px 0', borderBottom: `1px solid ${C.border}`, marginBottom: 10, display: 'flex', justifyContent: 'flex-end' }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: C.accent }}>{balance.toLocaleString('ru-RU')} ₽</span>
-            </div>
-          )}
           {navLinks.map(l => (
             <span key={l.key} onClick={() => { l.fn(); setMenuOpen(false) }}
               style={{ display: 'block', padding: '13px 0', fontSize: '0.95rem', color: isActive(l.key) ? C.accent : C.dimHi, fontWeight: isActive(l.key) ? 700 : 400, cursor: 'pointer', borderBottom: `1px solid ${C.border}` }}>

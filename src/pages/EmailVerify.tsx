@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import NavbarPublic from '../components/NavbarPublic'
 import Footer from '../components/Footer'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -128,7 +127,6 @@ export default function EmailVerify() {
         .shake              { animation: shake 0.4s ease; }
       `}</style>
 
-      <NavbarPublic />
 
       <main style={{ flex: 1, maxWidth: 460, margin: '0 auto', width: '100%', padding: '72px 24px 80px' }}>
         <div style={{ background: C.surface, borderRadius: 24, padding: '44px 36px', border: `1px solid ${C.border}`, animation: 'fadeUp 0.5s ease both', textAlign: 'center' }}>

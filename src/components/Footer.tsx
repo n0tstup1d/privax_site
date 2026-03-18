@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import { C } from './theme'
+import { C } from './Theme'
 
 export default function Footer() {
   const navigate = useNavigate()
   const year = new Date().getFullYear()
 
   return (
-    <footer style={{ background: C.surface, borderTop: `1px solid ${C.border}`, padding: '52px 24px 32px', marginTop: 40 }}>
+    <footer style={{ background: C.surface, borderTop: `1px solid ${C.border}`, padding: '52px 24px 32px' }}>
       <style>{`
         @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
         @media (max-width: 480px) {
@@ -73,12 +73,18 @@ export default function Footer() {
 
             <div>
               <div style={{ fontSize: '0.62rem', color: C.dim, letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 16 }}>Правовое</div>
-              {['Политика конфиденциальности', 'Условия использования', 'Политика возврата'].map(label => (
-                <div key={label} style={{ marginBottom: 10 }}>
-                  <span style={{ fontSize: '0.85rem', color: C.dim, cursor: 'pointer', transition: 'color 0.2s' }}
+              {[
+                { label: 'Политика конфиденциальности', path: '/privacy' },
+                { label: 'Пользовательское соглашение', path: '/agreement' },
+                { label: 'Условия использования',       path: '/terms' },
+                { label: 'Политика возврата',           path: '/refund' },
+              ].map(i => (
+                <div key={i.label} style={{ marginBottom: 10 }}>
+                  <span onClick={() => navigate(i.path)}
+                    style={{ fontSize: '0.85rem', color: C.dim, cursor: 'pointer', transition: 'color 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.color = C.accent}
                     onMouseLeave={e => e.currentTarget.style.color = C.dim}>
-                    {label}
+                    {i.label}
                   </span>
                 </div>
               ))}
@@ -86,9 +92,8 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="footer-bottom" style={{ borderTop: `1px solid ${C.border}`, paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div className="footer-bottom" style={{ borderTop: `1px solid ${C.border}`, paddingTop: 24 }}>
           <div style={{ fontSize: '0.75rem', color: C.dim }}>© {year} Privax Technologies. Все права защищены.</div>
-          <span style={{ fontSize: '0.72rem', color: C.dim }}>Принимаем: BTC · TON · USDT · ₽</span>
         </div>
       </div>
     </footer>

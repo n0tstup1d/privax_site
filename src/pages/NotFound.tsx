@@ -1,7 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import NavbarPublic from '../components/NavbarPublic'
-import NavbarAuth from '../components/NavbarAuth'
 import Footer from '../components/Footer'
 
 const C = {
@@ -30,11 +28,6 @@ export default function NotFound() {
     return () => clearInterval(id)
   }, [])
 
-  function handleLogout() {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    navigate('/')
-  }
 
   const suggestions = [
     { label: 'Главная',        path: '/',          icon: '🏠' },
@@ -52,9 +45,6 @@ export default function NotFound() {
         .not-found-card:hover { border-color: #2e3840 !important; transform: translateY(-2px); }
       `}</style>
 
-      {loggedIn
-        ? <NavbarAuth onLogout={handleLogout} />
-        : <NavbarPublic />}
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', textAlign: 'center' }}>
 
