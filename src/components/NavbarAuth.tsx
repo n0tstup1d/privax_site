@@ -69,7 +69,7 @@ function NotifDropdown({ notifications, onMarkAllRead, onViewAll, onClose, loadi
   return (
     <div style={{
       position: 'absolute', top: 'calc(100% + 10px)', right: 0,
-      width: 340, background: C.surface, border: `1px solid ${C.border}`,
+      width: 340, maxWidth: 'calc(100vw - 32px)', background: C.surface, border: `1px solid ${C.border}`,
       borderRadius: 16, boxShadow: '0 16px 48px rgba(0,0,0,0.5)', zIndex: 300,
       overflow: 'hidden',
     }}>
@@ -358,7 +358,7 @@ export default function NavbarAuth({ balance, onLogout }: Props) {
       <nav style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '0 20px', height: 66, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 200 }}>
 
         <span onClick={() => navigate('/')} style={{ fontSize: '1.25rem', fontWeight: 900, color: C.accent, letterSpacing: '0.06em', cursor: 'pointer', fontFamily: 'monospace' }}>
-          PRIVAX
+          TUGOKA
         </span>
 
         {/* Desktop */}

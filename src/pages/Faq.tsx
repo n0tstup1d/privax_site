@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch, getToken, isTokenValid, saveTokens, clearTokens, API } from '../api'
+import { apiFetch, getToken, isTokenValid, saveTokens, clearTokens, API } from '../Api'
 import { useNavigate, useParams } from 'react-router-dom'
 import NavbarPublic from '../components/NavbarPublic'
 import NavbarAuth from '../components/NavbarAuth'

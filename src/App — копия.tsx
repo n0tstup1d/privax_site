@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 
-import { API } from './Api'
+import { API, isTokenValid, clearTokens } from './Api'
 
 interface Plan {
   id: number
@@ -17,21 +17,17 @@ interface Plan {
 import NavbarPublic from './components/NavbarPublic'
 import NavbarAuth from './components/NavbarAuth'
 import FooterComponent from './components/Footer'
-import Register from './pages/Register'
 import Login from './pages/Login'
+import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
+import Plans from './pages/Plans'
 import EmailVerify from './pages/EmailVerify'
+import FaqPage from './pages/Faq'
 import SupportPage from './pages/Support'
 import NotFound from './pages/NotFound'
 import PrivateRoute from './components/PrivateRoute'
-import PlansPage from './pages/Plans'
 import AppsPage from './pages/Apps'
 import GuidesPage from './pages/Guides'
-import FaqPage from './pages/Faq'
-import AgreementPage from './pages/Agreement'
-import PrivacyPage from './pages/Privacy'
-import TermsPage from './pages/Terms'
-import RefundPage from './pages/Refund'
 
 const C = {
   bg:        '#0d0f10',
@@ -123,6 +119,109 @@ function useInView(threshold = 0.12) {
 }
 
 // ─── Анимированная сетка тарифов ────────────────────────────────────
+function PlansGrid({ plans, featuredId, loggedIn, navigate }: {
+  plans: Plan[]; featuredId: number | null; loggedIn: boolean; navigate: (p: string) => void
+}) {
+  const { ref, inView } = useInView(0.1)
+  return (
+    <div ref={ref}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, marginBottom: 24 }}>
+        {plans.map((plan, i) => {
+          const featured = plan.id === featuredId
+          const delay = `${i * 0.12}s`
+          return (
+            <div key={plan.id}
+              className={featured ? 'plan-card-featured' : ''}
+              style={{
+                background: C.card, borderRadius: 22, padding: '32px 28px',
+                border: `1px solid ${C.border}`,
+                display: 'flex', flexDirection: 'column', gap: 0,
+                position: 'relative',
+                opacity: inView ? 1 : 0,
+                transform: inView ? 'translateY(0) scale(1)' : 'translateY(32px) scale(0.97)',
+                transition: `opacity 0.6s ease ${delay}, transform 0.6s cubic-bezier(0.22,1,0.36,1) ${delay}, box-shadow 0.2s`,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px) scale(1)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.35)' }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0) scale(1)'; e.currentTarget.style.boxShadow = 'none' }}>
+
+              {featured && (
+                <div style={{
+                  position: 'absolute', top: -1, left: '50%', transform: 'translateX(-50%)',
+                  background: C.green, color: C.bg, fontSize: '0.62rem', fontWeight: 800,
+                  letterSpacing: '0.15em', padding: '4px 14px', borderRadius: '0 0 10px 10px',
+                  textTransform: 'uppercase',
+                }}>
+                  Рекомендуем
+                </div>
+              )}
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: '0.72rem', color: C.dim, textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.1em', marginBottom: 8 }}>
+                  {plan.display_name || plan.name}
+                </div>
+                <div style={{ fontSize: '2.2rem', fontWeight: 900, color: featured ? C.green : C.accent, letterSpacing: '-0.02em', lineHeight: 1 }}>
+                  <CountUp to={plan.final_price} duration={1200 + i * 150} suffix=" ₽" />
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:6 }}>
+                  <span style={{ fontSize:'1rem', fontWeight:800, color: featured ? C.green : C.accent }}>
+                    {plan.duration_days < 30 ? `${plan.duration_days} дней` : plan.duration_days < 60 ? '1 месяц' : plan.duration_days < 120 ? '3 месяца' : plan.duration_days < 300 ? 'Полгода' : '1 год'}
+                  </span>
+                  {plan.duration_days >= 30 && (
+                    <span style={{ fontSize:'0.72rem', color:C.dim }}>
+                      · {Math.round(plan.final_price / (plan.duration_days / 30))} ₽/мес
+                    </span>
+                  )}
+                </div>
+                {plan.discount_percent > 0 && (
+                  <div style={{ marginTop: 10, fontSize: '0.72rem', background: C.greenDim, color: C.green, border: `1px solid rgba(0,229,160,0.25)`, borderRadius: 6, padding: '3px 10px', display: 'inline-block', fontWeight: 700 }}>
+                    Экономия {plan.discount_percent}%
+                  </div>
+                )}
+              </div>
+
+              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginBottom: 20 }}>
+                {['Нулевое логирование', 'Автообновление конфигурации', 'Все платформы', 'Поддержка 24/7'].map((f, fi) => (
+                  <div key={f} style={{
+                    display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10,
+                    opacity: inView ? 1 : 0,
+                    transform: inView ? 'translateX(0)' : 'translateX(-10px)',
+                    transition: `opacity 0.4s ease ${parseFloat(delay) + 0.25 + fi * 0.06}s, transform 0.4s ease ${parseFloat(delay) + 0.25 + fi * 0.06}s`,
+                  }}>
+                    <span style={{ color: C.green, fontSize: '0.75rem', fontWeight: 800 }}>✓</span>
+                    <span style={{ fontSize: '0.82rem', color: C.dimHi }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={() => navigate(loggedIn ? '/plans' : '/login')}
+                style={{
+                  marginTop: 'auto', background: C.green, color: C.bg, border: 'none',
+                  borderRadius: 12, padding: '14px 0', fontWeight: 700, fontSize: '0.88rem',
+                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                  transition: 'box-shadow 0.2s, transform 0.15s',
+                  boxShadow: featured ? `0 0 28px rgba(0,229,160,0.5)` : `0 0 16px rgba(0,229,160,0.28)`,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 0 36px rgba(0,229,160,0.65)`; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = featured ? `0 0 28px rgba(0,229,160,0.5)` : `0 0 16px rgba(0,229,160,0.28)`; e.currentTarget.style.transform = 'none' }}>
+                Выбрать план →
+              </button>
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ textAlign: 'center', marginTop: 32, paddingBottom: 16 }}>
+        <button onClick={() => navigate('/plans')}
+          style={{ background: C.green, color: C.bg, border: 'none', borderRadius: 12, padding: '11px 32px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit', transition: 'box-shadow 0.2s, transform 0.15s', boxShadow: `0 0 20px rgba(0,229,160,0.35)` }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 0 32px rgba(0,229,160,0.6)`; e.currentTarget.style.transform = 'translateY(-1px)' }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = `0 0 20px rgba(0,229,160,0.35)`; e.currentTarget.style.transform = 'none' }}>
+          Все тарифы и детали →
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Анимированная сетка возможностей ───────────────────────────────
 function FeaturesGrid({ features }: { features: { icon: string; title: string; desc: string }[] }) {
   const { ref, inView } = useInView(0.08)
   return (
@@ -212,11 +311,18 @@ function StatusBadge() {
 // ─── Главная страница ────────────────────────────────────────────────
 function Home() {
   const navigate = useNavigate()
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [plansLoading, setPlansLoading] = useState(true)
   // Считаем залогиненным если есть хоть какой-то токен.
   const loggedIn = !!localStorage.getItem('logged_in')
   const email = loggedIn ? getEmailFromToken() : null
 
   useEffect(() => {
+    fetch(`${API}/subscriptions/plans`)
+      .then(r => r.json())
+      .then(d => setPlans(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setPlansLoading(false))
   }, [])
 
   const features = [
@@ -251,6 +357,14 @@ function Home() {
       desc: 'Серверы в нескольких странах с автоматическим выбором оптимального маршрута',
     },
   ]
+
+  const tierMap = new Map<number, Plan>()
+  plans.forEach(p => { if (!tierMap.has(p.tier_level)) tierMap.set(p.tier_level, p) })
+  const previewPlans = Array.from(tierMap.values()).slice(0, 3)
+
+  // Определяем "рекомендуемый" тариф — средний по цене
+  const sorted = [...previewPlans].sort((a, b) => a.final_price - b.final_price)
+  const featuredId = sorted.length >= 2 ? sorted[Math.floor(sorted.length / 2)]?.id : null
 
   return (
     <div style={{ background: C.bg, minHeight: '100vh', fontFamily: '"DM Sans", system-ui, sans-serif', color: C.accent, display: 'flex', flexDirection: 'column' }}>
@@ -330,17 +444,24 @@ function Home() {
             </h1>
 
             <p style={{ fontSize: 'clamp(1rem, 2vw, 1.15rem)', color: C.dimHi, lineHeight: 1.85, marginBottom: 44, maxWidth: 540, margin: '0 auto 44px' }}>
-              Tugoka шифрует трафик на лету, незаметно для вас.<br />
+              Privax шифрует трафик на лету, незаметно для вас.<br />
               Никаких логов — и это не политика, это архитектура.
             </p>
 
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
-                onClick={() => navigate(localStorage.getItem('logged_in') ? '/dashboard' : '/login')}
+                onClick={() => navigate(loggedIn ? '/dashboard' : '/plans')}
                 style={{ background: C.green, color: C.bg, border: 'none', borderRadius: 14, padding: '16px 36px', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.03em', boxShadow: `0 0 28px rgba(0,229,160,0.5), 0 0 10px rgba(0,229,160,0.3)`, transition: 'box-shadow 0.3s, transform 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 0 44px rgba(0,229,160,0.7), 0 0 18px rgba(0,229,160,0.5)`; e.currentTarget.style.transform = 'translateY(-1px)' }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = `0 0 28px rgba(0,229,160,0.5), 0 0 10px rgba(0,229,160,0.3)`; e.currentTarget.style.transform = 'none' }}>
-                {localStorage.getItem('logged_in') ? 'Личный кабинет →' : 'Начать →'}
+                Посмотреть →
+              </button>
+              <button
+                onClick={() => document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' })}
+                style={{ background: 'transparent', color: C.accent, border: `1px solid ${C.borderHi}`, borderRadius: 14, padding: '16px 36px', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.2s, background 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.borderHi; e.currentTarget.style.background = 'transparent' }}>
+                Посмотреть тарифы
               </button>
             </div>
 
@@ -377,15 +498,61 @@ function Home() {
           <div style={{ maxWidth: 1140, margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: 52 }}>
               <div style={{ fontSize: '0.62rem', color: C.green, letterSpacing: '0.28em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>Возможности</div>
-              <h2 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', fontWeight: 800, color: C.accent, letterSpacing: '-0.02em' }}>Почему Tugoka</h2>
+              <h2 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', fontWeight: 800, color: C.accent, letterSpacing: '-0.02em' }}>Почему Privax</h2>
             </div>
             <FeaturesGrid features={features} />
           </div>
         </section>
 
+        {/* ── ТАРИФЫ ── */}
+        <section id="plans" style={{ position: 'relative', padding: '80px 24px 120px', background: C.surface, overflow: 'hidden' }}>
+          <DotGrid id="plans" />
+
+          {/* Свечение — сверху по центру, входит с границы */}
+          <div style={{
+            position: 'absolute', top: -100, left: '50%', transform: 'translateX(-50%)',
+            width: 800, height: 440,
+            background: `radial-gradient(ellipse, rgba(0,229,160,0.14) 0%, rgba(0,229,160,0.04) 50%, transparent 70%)`,
+            pointerEvents: 'none',
+            animation: 'glowFromTop 1.4s cubic-bezier(0.22,1,0.36,1) both',
+          }} />
+
+          {/* Акцент — нижний правый */}
+          <div style={{
+            position: 'absolute', bottom: -60, right: -80,
+            width: 440, height: 360,
+            background: `radial-gradient(ellipse, rgba(0,229,160,0.09) 0%, transparent 65%)`,
+            pointerEvents: 'none',
+            animation: 'glowFromBottomRight 1.6s cubic-bezier(0.22,1,0.36,1) 0.15s both',
+          }} />
+
+          {/* Тонкий акцент — левый край по центру */}
+          <div style={{
+            position: 'absolute', top: '40%', left: -60,
+            width: 280, height: 280,
+            background: `radial-gradient(ellipse, rgba(0,229,160,0.05) 0%, transparent 70%)`,
+            pointerEvents: 'none',
+            animation: 'glowFromLeft 1.6s cubic-bezier(0.22,1,0.36,1) 0.25s both',
+          }} />
+
+          <div style={{ maxWidth: 1140, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+            <div style={{ textAlign: 'center', marginBottom: 48 }}>
+              <div style={{ fontSize: '0.62rem', color: C.green, letterSpacing: '0.28em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>Тарифы</div>
+              <h2 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', fontWeight: 800, color: C.accent, letterSpacing: '-0.02em', marginBottom: 10 }}>Выберите свой уровень защиты</h2>
+              <p style={{ fontSize: '0.92rem', color: C.dimHi }}>Нулевое логирование · Автообновление · Отмена в любой момент</p>
+            </div>
+
+            {plansLoading ? (
+              <div style={{ background: C.card, borderRadius: 20, padding: '48px', textAlign: 'center', color: C.dim, border: `1px solid ${C.border}` }}>
+                Загрузка тарифов...
+              </div>
+            ) : previewPlans.length === 0 ? null : (
+              <PlansGrid plans={previewPlans} featuredId={featuredId} loggedIn={loggedIn} navigate={navigate} />
+            )}
+          </div>
+        </section>
 
       </main>
-
 
       <FooterComponent />
     </div>
@@ -430,25 +597,14 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          {/* Регистрация — только по реф-ссылке — защита внутри компонента */}
           <Route path="/register" element={<Register />} />
-
-          {/* Публичные страницы — доступны всем */}
-          <Route path="/plans" element={<PlansPage />} />
-          <Route path="/apps" element={<AppsPage />} />
-          <Route path="/guides" element={<GuidesPage />} />
-          <Route path="/faq" element={<FaqPage />} />
-          <Route path="/agreement" element={<AgreementPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/refund" element={<RefundPage />} />
-
-          {/* Защищённые страницы — только для авторизованных */}
-          <Route path="/verify" element={<PrivateRoute><EmailVerify /></PrivateRoute>} />
+          <Route path="/verify" element={<EmailVerify />} />
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/plans" element={<Plans />} />
+          <Route path="/faq" element={<FaqPage />} />
+          <Route path="/guides" element={<GuidesPage />} />
+          <Route path="/apps" element={<AppsPage />} />
           <Route path="/support" element={<PrivateRoute><SupportPage /></PrivateRoute>} />
-
-          {/* Все остальные страницы — на 404 */}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

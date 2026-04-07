@@ -11,12 +11,49 @@ export function dismissOnboarding() {
   localStorage.setItem(STORAGE_KEY, 'true')
 }
 
+// ─── Иконки платформ (точно как в Apps.tsx) ───────────────────────────────
+
+function IconApple({ color = '#c8cdd0' }: { color?: string }) {
+  return (
+    <div style={{
+      width: 26, height: 26, background: color,
+      WebkitMaskImage: `url(https://cdnjs.cloudflare.com/ajax/libs/simple-icons/15.16.0/apple.svg)`,
+      maskImage: `url(https://cdnjs.cloudflare.com/ajax/libs/simple-icons/15.16.0/apple.svg)`,
+      WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+      WebkitMaskSize: 'contain', maskSize: 'contain',
+      WebkitMaskPosition: 'center', maskPosition: 'center',
+    }} />
+  )
+}
+
+function IconAndroid() {
+  return (
+    <div style={{
+      width: 26, height: 26, background: '#3DDC84',
+      WebkitMaskImage: `url(https://cdnjs.cloudflare.com/ajax/libs/simple-icons/15.16.0/android.svg)`,
+      maskImage: `url(https://cdnjs.cloudflare.com/ajax/libs/simple-icons/15.16.0/android.svg)`,
+      WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+      WebkitMaskSize: 'contain', maskSize: 'contain',
+      WebkitMaskPosition: 'center', maskPosition: 'center',
+    }} />
+  )
+}
+
+function IconWindows() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="#0078d4">
+      <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.801"/>
+    </svg>
+  )
+}
+
 // ─── Устройства ────────────────────────────────────────────────────────────
 
 interface Device {
   id: string
   label: string
-  icon: string
+  icon: React.ReactNode
+  iconColor: string
   appName: string
   appStore: string
   appUrl: string
@@ -27,7 +64,8 @@ const DEVICES: Device[] = [
   {
     id: 'iphone',
     label: 'iPhone / iPad',
-    icon: '🍎',
+    icon: <IconApple color="#c8cdd0" />,
+    iconColor: '#c8cdd0',
     appName: 'V2RayTun',
     appStore: 'App Store',
     appUrl: 'https://apps.apple.com/app/v2raytun/id6476628951',
@@ -36,40 +74,46 @@ const DEVICES: Device[] = [
       { text: 'Нажмите кнопку «+» вверху справа' },
       { text: 'Выберите «Вставить из буфера обмена»', hint: 'Ключ уже скопирован — просто нажмите' },
       { text: 'Нажмите «Сохранить», затем включите переключатель' },
+      { text: 'Альтернатива: Streisand, Hiddify', hint: 'Тоже поддерживают VLESS — ищите в App Store' },
     ],
   },
   {
     id: 'android',
     label: 'Android',
-    icon: '🤖',
+    icon: <IconAndroid />,
+    iconColor: '#3DDC84',
     appName: 'V2RayTun',
     appStore: 'Google Play',
     appUrl: 'https://play.google.com/store/apps/details?id=com.v2raytun.android',
     steps: [
-      { text: 'Откройте приложение V2RayTun' },
-      { text: 'Нажмите кнопку «+» вверху справа' },
-      { text: 'Выберите «Вставить из буфера обмена»', hint: 'Ключ уже скопирован — просто нажмите' },
-      { text: 'Нажмите «Сохранить», затем включите переключатель' },
+      { text: 'Откройте V2RayTun' },
+      { text: 'Нажмите «+» или «Добавить конфигурацию»' },
+      { text: 'Выберите «Вставить из буфера»', hint: 'Ключ уже скопирован — просто нажмите' },
+      { text: 'Нажмите «Подключиться»' },
+      { text: 'Альтернатива: Happ, Hiddify', hint: 'Тоже поддерживают VLESS — ищите в Google Play' },
     ],
   },
   {
     id: 'windows',
     label: 'Windows',
-    icon: '🖥',
+    icon: <IconWindows />,
+    iconColor: '#0078d4',
     appName: 'Happ',
-    appStore: 'официальный сайт',
-    appUrl: 'https://happ.to',
+    appStore: 'GitHub',
+    appUrl: 'https://github.com/Happ-proxy/happ-desktop/releases/latest/download/setup-Happ.x64.exe',
     steps: [
-      { text: 'Откройте программу Happ' },
-      { text: 'Нажмите кнопку «Из буфера» внизу экрана', hint: 'Ключ уже скопирован — просто нажмите' },
-      { text: 'Конфигурация добавится автоматически' },
+      { text: 'Скачайте и установите Happ' },
+      { text: 'Откройте программу' },
+      { text: 'Нажмите кнопку «Из буфера»', hint: 'Ключ уже скопирован — просто нажмите' },
       { text: 'Нажмите «Подключиться»' },
+      { text: 'Альтернатива: V2RayN, Hiddify', hint: 'v2rayn.2dust.link или hiddify.com' },
     ],
   },
   {
     id: 'mac',
     label: 'Mac',
-    icon: '💻',
+    icon: <IconApple color="#a0a0a0" />,
+    iconColor: '#a0a0a0',
     appName: 'V2RayTun',
     appStore: 'Mac App Store',
     appUrl: 'https://apps.apple.com/app/v2raytun/id6476628951',
@@ -94,7 +138,17 @@ function IconClose() {
 
 // ─── Шаг «Выбери устройство» ───────────────────────────────────────────────
 
-function StepDevice({ onSelect }: { onSelect: (d: Device) => void }) {
+function StepDevice({
+  onSelect,
+  neverShow,
+  onToggleNeverShow,
+  onClose,
+}: {
+  onSelect: (d: Device) => void
+  neverShow: boolean
+  onToggleNeverShow: () => void
+  onClose: () => void
+}) {
   return (
     <div style={{ padding: '28px 24px 24px', display: 'flex', flexDirection: 'column', gap: 0 }}>
 
@@ -114,7 +168,7 @@ function StepDevice({ onSelect }: { onSelect: (d: Device) => void }) {
       </div>
 
       {/* 4 кнопки устройств */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
         {DEVICES.map(d => (
           <button
             key={d.id}
@@ -122,7 +176,7 @@ function StepDevice({ onSelect }: { onSelect: (d: Device) => void }) {
             style={{
               background: C.card, border: `1px solid ${C.border}`, borderRadius: 16,
               padding: '18px 12px', cursor: 'pointer', fontFamily: 'inherit',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
               transition: 'border-color 0.2s, background 0.2s',
             }}
             onMouseEnter={e => {
@@ -134,11 +188,49 @@ function StepDevice({ onSelect }: { onSelect: (d: Device) => void }) {
               e.currentTarget.style.background = C.card
             }}
           >
-            <span style={{ fontSize: '2rem' }}>{d.icon}</span>
+            {/* Иконка платформы */}
+            <div style={{
+              width: 40, height: 40, borderRadius: 12,
+              background: `${d.iconColor}18`, border: `1px solid ${d.iconColor}28`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {d.icon}
+            </div>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: C.accent }}>{d.label}</span>
           </button>
         ))}
       </div>
+
+      {/* Чекбокс «Больше не показывать» */}
+      <button
+        onClick={onToggleNeverShow}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontFamily: 'inherit', padding: '8px 4px', borderRadius: 8,
+          width: '100%',
+          transition: 'opacity 0.15s',
+        }}
+      >
+        {/* Чекбокс */}
+        <div style={{
+          width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+          border: `2px solid ${neverShow ? C.green : C.border}`,
+          background: neverShow ? C.green : 'transparent',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 0.15s',
+        }}>
+          {neverShow && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0d0f10" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+        </div>
+        <span style={{ fontSize: '0.8rem', color: C.dim, textAlign: 'left' as const }}>
+          Больше не показывать при копировании
+        </span>
+      </button>
+
     </div>
   )
 }
@@ -159,7 +251,14 @@ function StepDownload({ device, onNext, onBack }: { device: Device; onNext: () =
       </button>
 
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{ fontSize: '2.8rem', marginBottom: 12 }}>{device.icon}</div>
+        {/* Иконка платформы */}
+        <div style={{
+          width: 56, height: 56, borderRadius: 16, margin: '0 auto 14px',
+          background: `${device.iconColor}18`, border: `1px solid ${device.iconColor}28`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {device.icon}
+        </div>
         <div style={{ fontSize: '1.05rem', fontWeight: 800, color: C.accent, marginBottom: 8 }}>
           Шаг 1 из 2 — скачайте приложение
         </div>
@@ -176,9 +275,11 @@ function StepDownload({ device, onNext, onBack }: { device: Device; onNext: () =
       }}>
         <div style={{
           width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-          background: 'rgba(0,229,160,0.1)', border: '1px solid rgba(0,229,160,0.2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem',
-        }}>📱</div>
+          background: `${device.iconColor}18`, border: `1px solid ${device.iconColor}28`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {device.icon}
+        </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '0.95rem', fontWeight: 700, color: C.accent, marginBottom: 3 }}>{device.appName}</div>
           <div style={{ fontSize: '0.75rem', color: C.dim }}>Бесплатно · {device.appStore}</div>
@@ -236,7 +337,13 @@ function StepConnect({ device, onClose, onBack }: { device: Device; onClose: () 
       </button>
 
       <div style={{ textAlign: 'center', marginBottom: 22 }}>
-        <div style={{ fontSize: '2.8rem', marginBottom: 12 }}>{device.icon}</div>
+        <div style={{
+          width: 56, height: 56, borderRadius: 16, margin: '0 auto 14px',
+          background: `${device.iconColor}18`, border: `1px solid ${device.iconColor}28`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {device.icon}
+        </div>
         <div style={{ fontSize: '1.05rem', fontWeight: 800, color: C.accent, marginBottom: 8 }}>
           Шаг 2 из 2 — подключитесь
         </div>
@@ -321,15 +428,31 @@ type Step = 'device' | 'download' | 'connect'
 export function KeyOnboardingModal({ vlessLink: _vlessLink, onClose }: { vlessLink: string | null; onClose: () => void }) {
   const [step, setStep] = useState<Step>('device')
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null)
+  const [neverShow, setNeverShow] = useState(false)
 
   function handleSelectDevice(d: Device) {
     setSelectedDevice(d)
     setStep('download')
   }
 
+  function handleToggleNeverShow() {
+    const next = !neverShow
+    setNeverShow(next)
+    if (next) {
+      dismissOnboarding()
+    } else {
+      localStorage.removeItem('key_onboarding_dismissed')
+    }
+  }
+
+  function handleClose() {
+    // Если чекбокс отмечен — уже сохранили, просто закрываем
+    onClose()
+  }
+
   return (
     <div
-      onClick={onClose}
+      onClick={handleClose}
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
         backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -343,11 +466,12 @@ export function KeyOnboardingModal({ vlessLink: _vlessLink, onClose }: { vlessLi
           width: '100%', maxWidth: 420,
           boxShadow: '0 32px 80px rgba(0,0,0,0.6)', overflow: 'hidden',
           animation: 'fadeUp 0.3s cubic-bezier(0.34,1.3,0.64,1) both',
+          position: 'relative',
         }}
       >
         {/* Кнопка закрытия */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           style={{
             position: 'absolute', top: 16, right: 16,
             background: 'none', border: 'none', color: C.dim, cursor: 'pointer',
@@ -374,7 +498,12 @@ export function KeyOnboardingModal({ vlessLink: _vlessLink, onClose }: { vlessLi
         )}
 
         {step === 'device' && (
-          <StepDevice onSelect={handleSelectDevice} />
+          <StepDevice
+            onSelect={handleSelectDevice}
+            neverShow={neverShow}
+            onToggleNeverShow={handleToggleNeverShow}
+            onClose={handleClose}
+          />
         )}
         {step === 'download' && selectedDevice && (
           <StepDownload
@@ -386,7 +515,7 @@ export function KeyOnboardingModal({ vlessLink: _vlessLink, onClose }: { vlessLi
         {step === 'connect' && selectedDevice && (
           <StepConnect
             device={selectedDevice}
-            onClose={onClose}
+            onClose={handleClose}
             onBack={() => setStep('download')}
           />
         )}

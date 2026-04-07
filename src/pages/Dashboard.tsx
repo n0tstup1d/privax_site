@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch, API } from '../api'
+import { apiFetch, API } from '../Api'
 import { createPortal } from 'react-dom'
 import { SupportModal } from './Support'
 import { useToast } from '../components/Toast'
@@ -82,7 +82,7 @@ function TopUpModal({ onClose }: { onClose: () => void }) {
           <div style={{ fontSize:'0.85rem', color:C.dim, lineHeight:1.6 }}>Пополнение осуществляется через поддержку</div>
         </div>
         <div style={{ background:C.card, borderRadius:16, padding:'4px 0', marginBottom:20, border:`1px solid ${C.border}` }}>
-          {[{ label:'Telegram', val:'@privax_support', icon:'✈️' }, { label:'Email', val:'support@privax.ru', icon:'✉️' }].map((item, i, arr) => (
+          {[{ label:'Telegram', val:'@tugoka_support', icon:'✈️' }, { label:'Email', val:'support@tugoka.ru', icon:'✉️' }].map((item, i, arr) => (
             <div key={item.label} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 16px', borderBottom: i<arr.length-1 ? `1px solid ${C.border}` : 'none' }}>
               <span style={{ fontSize:'1rem' }}>{item.icon}</span>
               <div>
@@ -334,6 +334,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState(Date.now())
 
+  // История событий подписки
+  const [subEvents, setSubEvents] = useState<Record<number, any[]>>({})
+  const [subEventsOpen, setSubEventsOpen] = useState<number | null>(null)
+  const [subEventsLoading, setSubEventsLoading] = useState(false)
+
+  // Баннер смены ссылки
+  const [linkChangedBanner, setLinkChangedBanner] = useState(false)
+
   const [oldPw,  setOldPw]  = useState('')
   const [newPw,  setNewPw]  = useState('')
 
@@ -342,9 +350,13 @@ export default function Dashboard() {
     referral_code: string
     referral_link: string
     total_referred: number
+    invite_limit: number
+    invites_used: number
+    invites_left: number | null
     bonuses_earned: number
     pending: number
     bonus_days_per_referral: number
+    referred_discount_percent: number
   }
   const [referralData, setReferralData] = useState<ReferralData | null>(null)
   const [referralCopied, setReferralCopied] = useState(false)
@@ -425,6 +437,13 @@ export default function Dashboard() {
       setInvoices(me.payment_history || [])
       setActiveSubs(me.subscriptions?.active || [])
       setExpiredSubs(me.subscriptions?.expired || [])
+
+      // Проверяем смену ссылки — если есть непрочитанное уведомление типа link_changed или migrated
+      const unread = me.unread_notifications || []
+      const hasLinkChange = unread.some((n: any) =>
+        n.title?.includes('перенесена') || n.title?.includes('обновлён') || n.title?.includes('Ключ')
+      )
+      if (hasLinkChange) setLinkChangedBanner(true)
       if (plansRes.ok) {
         const plansData = await plansRes.json()
         if (Array.isArray(plansData)) setRenewPlans(plansData)
@@ -434,6 +453,18 @@ export default function Dashboard() {
         setReferralData(refData)
       }
     } catch {} finally { setLoading(false) }
+  }
+
+  async function loadSubEvents(configId: number) {
+    setSubEventsLoading(true)
+    try {
+      const res = await apiFetch(`/users/subscriptions/${configId}/events`)
+      if (res.ok) {
+        const data = await res.json()
+        setSubEvents(prev => ({ ...prev, [configId]: data }))
+      }
+    } catch {}
+    setSubEventsLoading(false)
   }
 
   async function handleChangePassword() {
@@ -493,7 +524,7 @@ export default function Dashboard() {
       setResetConfirmId(null)
       setOpenSettingsId(null)
       // Показываем модалку успеха
-      setResetSuccessData({ vless_link: data.vless_link, next_reset_at: data.next_reset_at })
+      setResetSuccessData({ vless_link: data.sub_url, next_reset_at: data.next_reset_at })
     } catch { setResetError('Сервер недоступен') } finally { setResetLoadingId(null) }
   }
 
@@ -541,6 +572,19 @@ export default function Dashboard() {
         .inv-row:hover { background: rgba(255,255,255,0.03) !important; }
         .sub-card-active { border-color: rgba(0,229,160,0.2) !important; }
         .hist-filter-btn { transition: background 0.2s, color 0.2s, border-color 0.2s; }
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none; appearance: none;
+          width: 18px; height: 18px; border-radius: 50%;
+          background: ${C.green}; border: 2px solid ${C.surface};
+          box-shadow: 0 0 8px rgba(0,229,160,0.4);
+          cursor: pointer;
+        }
+        input[type="range"]::-moz-range-thumb {
+          width: 14px; height: 14px; border-radius: 50%;
+          background: ${C.green}; border: 2px solid ${C.surface};
+          box-shadow: 0 0 8px rgba(0,229,160,0.4);
+          cursor: pointer;
+        }
         @media (max-width: 480px) {
           .profile-card { flex-direction: column !important; align-items: stretch !important; }
           .profile-card-right { flex-direction: row !important; justify-content: space-between !important; align-items: center !important; }
@@ -552,6 +596,37 @@ export default function Dashboard() {
           .footer-grid { flex-direction: column !important; gap: 32px !important; }
           .footer-links { gap: 32px !important; }
           .footer-bottom { flex-direction: column !important; gap: 8px !important; }
+          .dash-sub-badges { flex-wrap: wrap !important; }
+          .dash-expiring-banner {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .dash-expiring-banner button {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .dash-expired-card {
+            flex-direction: column !important;
+            gap: 10px !important;
+          }
+          .dash-expired-card button {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .dash-referral-link-row {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+          }
+          .dash-referral-link-row button {
+            flex-shrink: 0 !important;
+          }
+          .inv-row-inner {
+            gap: 8px !important;
+          }
+          .inv-details {
+            gap: 12px !important;
+          }
         }
       `}</style>
 
@@ -614,9 +689,17 @@ export default function Dashboard() {
                   ))}
                 </div>
             </div>
+            {referralData.invite_limit > 0 && (
+              <div style={{ background: referralData.invites_left === 0 ? 'rgba(255,94,94,0.08)' : 'rgba(0,229,160,0.06)', border:`1px solid ${referralData.invites_left === 0 ? 'rgba(255,94,94,0.25)' : 'rgba(0,229,160,0.2)'}`, borderRadius:10, padding:'8px 14px', marginBottom:8, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <span style={{ fontSize:'0.75rem', color:C.dim }}>Осталось приглашений</span>
+                <span style={{ fontSize:'0.9rem', fontWeight:800, color: referralData.invites_left === 0 ? '#ff5e5e' : C.green }}>
+                  {referralData.invites_left ?? '∞'} / {referralData.invite_limit}
+                </span>
+              </div>
+            )}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
               <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:'10px 14px' }}>
-                <div style={{ fontSize:'1.2rem', fontWeight:900, color:C.green, lineHeight:1 }}>15%</div>
+                <div style={{ fontSize:'1.2rem', fontWeight:900, color:C.green, lineHeight:1 }}>{referralData.referred_discount_percent}%</div>
                 <div style={{ fontSize:'0.7rem', color:C.dim, marginTop:4, lineHeight:1.4 }}>скидка другу на первую покупку</div>
               </div>
               <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:'10px 14px' }}>
@@ -624,7 +707,7 @@ export default function Dashboard() {
                 <div style={{ fontSize:'0.7rem', color:C.dim, marginTop:4, lineHeight:1.4 }}>вам бесплатно после его оплаты</div>
               </div>
             </div>
-            <div style={{ display:'flex', gap:8 }}>
+            <div className="dash-referral-link-row" style={{ display:'flex', gap:8 }}>
               <div style={{ flex:1, background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:'10px 14px', fontSize:'0.78rem', color:C.dimHi, fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {referralData.referral_link}
               </div>
@@ -654,6 +737,19 @@ export default function Dashboard() {
         {/* ════ ПОДПИСКИ ════ */}
         {tab === 'subscriptions' && (
           <div style={{ display:'flex', flexDirection:'column', gap:12, animation:'fadeUp 0.4s ease both' }}>
+
+            {/* Баннер смены ссылки */}
+            {linkChangedBanner && (
+              <div style={{ background:'rgba(0,229,160,0.08)', border:`1px solid rgba(0,229,160,0.25)`, borderRadius:14, padding:'14px 18px', display:'flex', alignItems:'center', gap:12 }}>
+                <span style={{ fontSize:'1.2rem' }}>🔑</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:'0.88rem', fontWeight:700, color:C.green, marginBottom:2 }}>Ключ доступа обновлён</div>
+                  <div style={{ fontSize:'0.78rem', color:C.dim }}>Ваша подписка была перенесена или обновлена. Скопируйте новый ключ ниже.</div>
+                </div>
+                <button onClick={() => setLinkChangedBanner(false)} style={{ background:'none', border:'none', color:C.dim, fontSize:'1rem', cursor:'pointer', padding:4 }}>✕</button>
+              </div>
+            )}
+
             {activeSubs.length === 0 && expiredSubs.length === 0 ? (
               <div style={{ background:C.surface, borderRadius:22, padding:'48px 28px', border:`1px solid ${C.border}`, textAlign:'center' }}>
                 <div style={{ fontSize:'2.2rem', marginBottom:14 }}>🔒</div>
@@ -687,7 +783,7 @@ export default function Dashboard() {
 
                       {/* ── Баннер истечения ── */}
                       {isExpiring3h && canRenew && (
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, background:"rgba(255,94,94,0.08)", border:"1px solid rgba(255,94,94,0.25)", borderRadius:14, padding:"11px 14px", marginBottom:14 }}>
+                        <div className="dash-expiring-banner" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, background:"rgba(255,94,94,0.08)", border:"1px solid rgba(255,94,94,0.25)", borderRadius:14, padding:"11px 14px", marginBottom:14 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                             <span style={{ fontSize:"1rem" }}>🔴</span>
                             <div>
@@ -699,7 +795,7 @@ export default function Dashboard() {
                         </div>
                       )}
                       {isExpiring24h && canRenew && (
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.25)", borderRadius:14, padding:"11px 14px", marginBottom:14 }}>
+                        <div className="dash-expiring-banner" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.25)", borderRadius:14, padding:"11px 14px", marginBottom:14 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                             <span style={{ fontSize:"1rem" }}>⚠️</span>
                             <div>
@@ -710,72 +806,74 @@ export default function Dashboard() {
                           <button onClick={() => setRenewSub(sub)} style={{ background:"#f59e0b", color:"#000", border:"none", borderRadius:10, padding:"7px 14px", fontSize:"0.75rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" as const, display:"flex", alignItems:"center", justifyContent:"center" }}>Продлить</button>
                         </div>
                       )}
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
-                        <div>
-                          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-                            <div style={{ display:'inline-flex', alignItems:'center', gap:6, background:C.greenDim, border:`1px solid rgba(0,229,160,0.2)`, borderRadius:20, padding:'3px 10px' }}>
-                              <span style={{ width:6, height:6, borderRadius:'50%', background:C.green, display:'block' }} />
-                              <span style={{ fontSize:'0.62rem', color:C.green, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>Защищено</span>
+                      {/* ── Шапка: название + дни + шестерёнка ── */}
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5, flexWrap:'wrap' }}>
+                            <div style={{ display:'inline-flex', alignItems:'center', gap:5, background:C.greenDim, border:`1px solid rgba(0,229,160,0.2)`, borderRadius:20, padding:'2px 8px' }}>
+                              <span style={{ width:5, height:5, borderRadius:'50%', background:C.green, display:'block' }} />
+                              <span style={{ fontSize:'0.58rem', color:C.green, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>Защищено</span>
                             </div>
-                            {/* Статус сервера */}
                             <span
                               title={serverOnline === null ? 'Проверяем сервер...' : serverOnline ? 'Сервер работает' : 'Сервер недоступен'}
-                              style={{ display:'inline-flex', alignItems:'center', gap:5, background: serverOnline === false ? 'rgba(255,94,94,0.1)' : serverOnline === true ? 'rgba(0,229,160,0.08)' : 'rgba(138,154,170,0.1)', border:`1px solid ${serverOnline === false ? 'rgba(255,94,94,0.3)' : serverOnline === true ? 'rgba(0,229,160,0.2)' : 'rgba(138,154,170,0.2)'}`, borderRadius:20, padding:'3px 10px' }}>
-                              <span style={{ width:6, height:6, borderRadius:'50%', background: serverOnline === null ? C.dim : serverOnline ? C.green : C.red, display:'block', boxShadow: serverOnline === true ? `0 0 5px ${C.green}` : serverOnline === false ? `0 0 5px ${C.red}` : 'none' }} />
-                              <span style={{ fontSize:'0.62rem', fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' as const, color: serverOnline === null ? C.dim : serverOnline ? C.green : C.red }}>
-                                {serverOnline === null ? 'Проверка...' : serverOnline ? 'Онлайн' : 'Недоступен'}
+                              style={{ display:'inline-flex', alignItems:'center', gap:4, background: serverOnline === false ? 'rgba(255,94,94,0.1)' : serverOnline === true ? 'rgba(0,229,160,0.08)' : 'rgba(138,154,170,0.1)', border:`1px solid ${serverOnline === false ? 'rgba(255,94,94,0.3)' : serverOnline === true ? 'rgba(0,229,160,0.2)' : 'rgba(138,154,170,0.2)'}`, borderRadius:20, padding:'2px 8px' }}>
+                              <span style={{ width:5, height:5, borderRadius:'50%', background: serverOnline === null ? C.dim : serverOnline ? C.green : C.red, display:'block', boxShadow: serverOnline === true ? `0 0 4px ${C.green}` : serverOnline === false ? `0 0 4px ${C.red}` : 'none' }} />
+                              <span style={{ fontSize:'0.58rem', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase' as const, color: serverOnline === null ? C.dim : serverOnline ? C.green : C.red }}>
+                                {serverOnline === null ? '...' : serverOnline ? 'Онлайн' : 'Офлайн'}
                               </span>
                             </span>
                           </div>
                           <div style={{ fontSize:'1rem', fontWeight:700, color:C.accent }}>{sub.plan}</div>
                         </div>
-                        <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
                           <div style={{ textAlign:'right' }}>
-                            <div style={{ fontSize:'0.65rem', color:C.dim, marginBottom:4 }}>
+                            <div style={{ fontSize:'0.6rem', color:C.dim, marginBottom:2 }}>
                               {msLeft <= 0 ? 'Истекло' : 'Осталось'}
                             </div>
-                            <div style={{ fontSize:'1.4rem', fontWeight:900, letterSpacing:'-0.02em',
+                            <div style={{ fontSize:'1.3rem', fontWeight:900, letterSpacing:'-0.02em', lineHeight:1,
                               color: msLeft <= 0 ? C.dim : hoursLeft <= 3 ? C.red : hoursLeft <= 24 ? '#f59e0b' : daysLeft <= 7 ? '#f59e0b' : C.accent }}>
                               {msLeft <= 0
-                                ? <span style={{ fontSize:'0.85rem', fontWeight:700 }}>Готово</span>
+                                ? <span style={{ fontSize:'0.8rem', fontWeight:700 }}>—</span>
                                 : hoursLeft >= 24
-                                  ? <>{daysLeft}<span style={{ fontSize:'0.75rem', fontWeight:500, color:C.dim }}> дн.</span></>
+                                  ? <>{daysLeft}<span style={{ fontSize:'0.65rem', fontWeight:500, color:C.dim }}> дн</span></>
                                   : minutesLeft >= 60
-                                    ? <>{Math.floor(hoursLeft)}<span style={{ fontSize:'0.75rem', fontWeight:500, color:C.dim }}> ч.</span></>
-                                    : <>{Math.ceil(minutesLeft)}<span style={{ fontSize:'0.75rem', fontWeight:500, color:C.dim }}> мин.</span></>
+                                    ? <>{Math.floor(hoursLeft)}<span style={{ fontSize:'0.65rem', fontWeight:500, color:C.dim }}> ч</span></>
+                                    : <>{Math.ceil(minutesLeft)}<span style={{ fontSize:'0.65rem', fontWeight:500, color:C.dim }}> мин</span></>
                               }
                             </div>
                           </div>
-                          {/* ── Кнопка шестерёнки ── */}
                           <button onClick={() => setOpenSettingsId(openSettingsId === String(orderId) ? null : String(orderId))}
-                            title="Настройки подписки"
-                            style={{ width:34, height:34, borderRadius:10, background: C.green, color:C.bg, border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.2s', boxShadow:'0 0 14px rgba(0,229,160,0.3)' }}
-                            onMouseEnter={e => { e.currentTarget.style.boxShadow='0 0 24px rgba(0,229,160,0.55)'; e.currentTarget.style.transform='translateY(-1px)' }}
-                            onMouseLeave={e => { e.currentTarget.style.boxShadow='0 0 14px rgba(0,229,160,0.3)'; e.currentTarget.style.transform='none' }}>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            title="Настройки"
+                            style={{ width:32, height:32, borderRadius:9, background:'transparent', color:C.dim, border:`1px solid ${C.border}`, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.2s' }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor=C.green; e.currentTarget.style.color=C.green }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor=C.border; e.currentTarget.style.color=C.dim }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                             </svg>
                           </button>
                         </div>
                       </div>
 
-                      {/* Мета */}
-                      <div className="sub-meta" style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap', alignItems:'center' }}>
-                        <span style={{ display:'inline-flex', alignItems:'center', gap:5, background:'rgba(255,255,255,0.05)', border:`1px solid ${C.border}`, borderRadius:8, padding:'4px 10px' }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.dimHi} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                          <span style={{ fontSize:'0.75rem', color:C.dimHi, fontWeight:600 }}>до {fmtDate(sub.expires_at)}</span>
+                      {/* ── Мета: дата · устройства · ID — одна компактная строка ── */}
+                      <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap', alignItems:'center', fontSize:'0.7rem', color:C.dim }}>
+                        <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.dim} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                          до {fmtDate(sub.expires_at)}
                         </span>
-                        {maxDev && (
-                          <span style={{ display:'inline-flex', alignItems:'center', gap:5, background:C.greenDim, border:`1px solid rgba(0,229,160,0.2)`, borderRadius:8, padding:'4px 10px' }}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                            <span style={{ fontSize:'0.75rem', color:C.green, fontWeight:700 }}>до {maxDev} устройств</span>
+                        <span style={{ color:C.border }}>·</span>
+                        {maxDev && (<>
+                          <span style={{ display:'inline-flex', alignItems:'center', gap:4, color:C.dimHi }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.dimHi} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                            {maxDev} уст.
                           </span>
-                        )}
-                        <span className="sub-meta-id" style={{ fontSize:'0.72rem', color:C.dim, marginLeft:'auto', fontFamily:'monospace', letterSpacing:'0.05em', background:C.card, padding:'2px 8px', borderRadius:6 }}>
+                          <span style={{ color:C.border }}>·</span>
+                        </>)}
+                        <span style={{ fontFamily:'monospace', letterSpacing:'0.04em', fontSize:'0.65rem' }}>
                           #{String(orderId).slice(-6).toUpperCase()}
                         </span>
                       </div>
 
+                      {/* ── Кнопки: ключ + QR ── */}
                       {devices.length > 0 ? (
                         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                           {devices.map(dev => (
@@ -788,7 +886,7 @@ export default function Dashboard() {
                               {dev.vless_link ? (
                                 serverOnline === false ? (
                                   <button onClick={() => { setSupportSubject(`Проблема с сервером по подписке ${sub.plan}`); setTab('support') }}
-                                    style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:8, background:'rgba(255,94,94,0.1)', color:C.red, border:`1px solid rgba(255,94,94,0.3)`, borderRadius:12, padding:'11px 0', fontSize:'0.82rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit', transition:'all 0.2s' }}
+                                    style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:8, background:'rgba(255,94,94,0.1)', color:C.red, border:`1px solid rgba(255,94,94,0.3)`, borderRadius:12, padding:'10px 0', fontSize:'0.8rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit', transition:'all 0.2s' }}
                                     onMouseEnter={e => { e.currentTarget.style.background='rgba(255,94,94,0.18)' }}
                                     onMouseLeave={e => { e.currentTarget.style.background='rgba(255,94,94,0.1)' }}>
                                     ⚠️ Сервер недоступен — написать в поддержку
@@ -796,16 +894,16 @@ export default function Dashboard() {
                                 ) : (
                                 <div style={{ display:'flex', gap:8 }}>
                                   <button onClick={() => { navigator.clipboard.writeText(dev.vless_link!); setCopiedId(dev.id); setTimeout(() => setCopiedId(null), 2000); if (shouldShowOnboarding()) { setOnboardingVless(dev.vless_link); setShowOnboarding(true) } }}
-                                    style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8, background: C.green, color: C.bg, border:'none', borderRadius:12, padding:'11px 0', fontSize:'0.82rem', fontWeight:800, cursor:'pointer', fontFamily:'inherit', transition:'all 0.2s', boxShadow:'0 0 18px rgba(0,229,160,0.3)', opacity: copiedId===dev.id ? 0.85 : 1 }}
-                                    onMouseEnter={e => { e.currentTarget.style.boxShadow='0 0 28px rgba(0,229,160,0.55)'; e.currentTarget.style.transform='translateY(-1px)' }}
-                                    onMouseLeave={e => { e.currentTarget.style.boxShadow='0 0 18px rgba(0,229,160,0.3)'; e.currentTarget.style.transform='none' }}>
-                                    {copiedId===dev.id ? '✓ Скопировано' : '🔑 Скопировать ключ доступа'}
+                                    style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8, background: C.green, color: C.bg, border:'none', borderRadius:12, padding:'10px 0', fontSize:'0.82rem', fontWeight:800, cursor:'pointer', fontFamily:'inherit', transition:'all 0.2s', boxShadow:'0 0 16px rgba(0,229,160,0.25)', opacity: copiedId===dev.id ? 0.85 : 1 }}
+                                    onMouseEnter={e => { e.currentTarget.style.boxShadow='0 0 24px rgba(0,229,160,0.5)'; e.currentTarget.style.transform='translateY(-1px)' }}
+                                    onMouseLeave={e => { e.currentTarget.style.boxShadow='0 0 16px rgba(0,229,160,0.25)'; e.currentTarget.style.transform='none' }}>
+                                    {copiedId===dev.id ? '✓ Скопировано' : '🔑 Скопировать ключ'}
                                   </button>
                                   <button onClick={() => setQrLink(dev.vless_link!)}
-                                    style={{ width:44, flexShrink:0, background:C.green, color:C.bg, border:'none', borderRadius:12, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.2s', boxShadow:'0 0 14px rgba(0,229,160,0.3)' }}
+                                    style={{ width:42, height:42, flexShrink:0, background:'transparent', color:C.dimHi, border:`1px solid ${C.border}`, borderRadius:12, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.2s' }}
                                     title="QR-код"
-                                    onMouseEnter={e => { e.currentTarget.style.boxShadow='0 0 24px rgba(0,229,160,0.55)'; e.currentTarget.style.transform='translateY(-1px)' }}
-                                    onMouseLeave={e => { e.currentTarget.style.boxShadow='0 0 14px rgba(0,229,160,0.3)'; e.currentTarget.style.transform='none' }}>
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor=C.green; e.currentTarget.style.color=C.green }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor=C.border; e.currentTarget.style.color=C.dimHi }}>
                                     <QrIcon />
                                   </button>
                                 </div>
@@ -827,7 +925,7 @@ export default function Dashboard() {
                           <div onClick={() => { setOpenSettingsId(null); setResetConfirmId(null) }}
                             style={{ position:'fixed', inset:0, zIndex:99 }} />
 
-                          <div style={{ position:'absolute', top:14, right:14, zIndex:100, width:270, background:C.card, border:`1px solid ${C.borderHi}`, borderRadius:16, boxShadow:'0 16px 48px rgba(0,0,0,0.55)', padding:'8px', animation:'settingsIn 0.2s cubic-bezier(0.34,1.3,0.64,1) both' }}>
+                          <div style={{ position:'absolute', top:14, right:14, zIndex:100, width:270, maxWidth:'calc(100vw - 60px)', background:C.card, border:`1px solid ${C.borderHi}`, borderRadius:16, boxShadow:'0 16px 48px rgba(0,0,0,0.55)', padding:'8px', animation:'settingsIn 0.2s cubic-bezier(0.34,1.3,0.64,1) both' }}>
 
                             <div style={{ padding:'8px 10px 10px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:`1px solid ${C.border}`, marginBottom:6 }}>
                               <span style={{ fontSize:'0.62rem', color:C.green, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase' }}>Настройки</span>
@@ -861,6 +959,15 @@ export default function Dashboard() {
                                 <div style={{ height:1, background:C.border, margin:"4px 0" }} />
                               </>
                             )}
+                            {/* История подписки */}
+                            <button onClick={() => { const cid = firstDevId; if (cid) { setSubEventsOpen(subEventsOpen === cid ? null : cid); if (!subEvents[cid]) loadSubEvents(cid) }; setOpenSettingsId(null) }}
+                              style={{ width:'100%', boxSizing:'border-box', display:'flex', alignItems:'center', gap:10, background:'transparent', border:'none', color:C.dimHi, borderRadius:10, padding:'10px', fontSize:'0.83rem', fontWeight:500, cursor:'pointer', fontFamily:'inherit', transition:'background 0.15s, color 0.15s', textAlign:'left' as const }}
+                              onMouseEnter={e => { e.currentTarget.style.background=C.surface; e.currentTarget.style.color=C.accent }}
+                              onMouseLeave={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color=C.dimHi }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                              История подписки
+                            </button>
+
                             {/* Поддержка */}
                             <button onClick={() => { setSupportSubject(`Вопрос по подписке ${sub.plan} #${orderId}`); setOpenSettingsId(null) }}
                               style={{ width:'100%', boxSizing:'border-box', display:'flex', alignItems:'center', gap:10, background:'transparent', border:'none', color:C.dimHi, borderRadius:10, padding:'10px', fontSize:'0.83rem', fontWeight:500, cursor:'pointer', fontFamily:'inherit', transition:'background 0.15s, color 0.15s', textAlign:'left' as const }}
@@ -925,6 +1032,34 @@ export default function Dashboard() {
                   )
                 })}
 
+                {/* Таймлайн событий подписки */}
+                {subEventsOpen !== null && (
+                  <div style={{ background:C.surface, borderRadius:18, padding:'18px 20px', border:`1px solid ${C.border}`, animation:'fadeUp 0.3s ease both' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                      <span style={{ fontSize:'0.82rem', fontWeight:700, color:C.accent }}>История подписки</span>
+                      <button onClick={() => setSubEventsOpen(null)} style={{ background:'none', border:'none', color:C.dim, cursor:'pointer', fontSize:'0.9rem' }}>✕</button>
+                    </div>
+                    {subEventsLoading ? (
+                      <div style={{ textAlign:'center', padding:'16px 0', color:C.dim, fontSize:'0.82rem' }}>Загрузка...</div>
+                    ) : !subEvents[subEventsOpen] || subEvents[subEventsOpen].length === 0 ? (
+                      <div style={{ textAlign:'center', padding:'16px 0', color:C.dim, fontSize:'0.82rem' }}>Событий пока нет</div>
+                    ) : (
+                      <div style={{ borderLeft:`2px solid ${C.border}`, paddingLeft:16 }}>
+                        {subEvents[subEventsOpen].map((ev: any) => {
+                          const color = ev.event_type === 'purchased' ? C.green : ev.event_type === 'migrated' ? '#b57bff' : ev.event_type === 'expired' || ev.event_type === 'deactivated' ? C.red : ev.event_type === 'reset' ? '#f5a623' : C.blue
+                          return (
+                            <div key={ev.id} style={{ position:'relative', paddingBottom:12 }}>
+                              <div style={{ position:'absolute', left:-22, top:3, width:10, height:10, borderRadius:'50%', background:color, border:`2px solid ${C.surface}` }} />
+                              <div style={{ fontSize:'0.8rem', color:C.accent }}>{ev.description}</div>
+                              <div style={{ fontSize:'0.68rem', color:C.dim, marginTop:2 }}>{new Date(ev.created_at).toLocaleString('ru', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {expiredSubs.map(sub => {
                   const nowDate = new Date()
                   const inGrace = sub.grace_period_end && new Date(sub.grace_period_end) > nowDate
@@ -936,7 +1071,7 @@ export default function Dashboard() {
                       {inGrace && (
                         <div style={{ position:"absolute" as const, top:-1, left:0, right:0, height:3, borderRadius:"22px 22px 0 0", background:"linear-gradient(90deg,#f59e0b,rgba(245,158,11,0.3))" }} />
                       )}
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom: inGrace ? 14 : 0 }}>
+                      <div className="dash-expired-card" style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom: inGrace ? 14 : 0 }}>
                         <div>
                           <div style={{ display:"inline-flex", alignItems:"center", gap:5, background: inGrace ? "rgba(245,158,11,0.1)" : "rgba(255,94,94,0.08)", border:`1px solid ${inGrace ? "rgba(245,158,11,0.3)" : "rgba(255,94,94,0.2)"}`, borderRadius:20, padding:"2px 9px", marginBottom:6 }}>
                             <span style={{ width:5, height:5, borderRadius:"50%", background: inGrace ? "#f59e0b" : C.red, display:"block" }} />
@@ -1018,7 +1153,7 @@ export default function Dashboard() {
                       {expanded && (
                         <div style={{ padding:'12px 22px 16px', borderBottom: i < filteredInvoices.length-1 ? `1px solid ${C.border}` : 'none', background:'rgba(255,255,255,0.015)' }}>
                           <div style={{ display:'flex', gap:24, flexWrap:'wrap' }}>
-                            {[['ID операции', `#${inv.id}`], ['Дата', fmtDate(inv.date)], ['Метод', 'Баланс Privax'], ['Статус', inv.status === 'paid' ? 'Выполнено' : 'Отменено']].map(([k, v]) => (
+                            {[['ID операции', `#${inv.id}`], ['Дата', fmtDate(inv.date)], ['Метод', 'Баланс Tugoka'], ['Статус', inv.status === 'paid' ? 'Выполнено' : 'Отменено']].map(([k, v]) => (
                               <div key={k}>
                                 <div style={{ fontSize:'0.65rem', color:C.dim, marginBottom:3 }}>{k}</div>
                                 <div style={{ fontSize:'0.82rem', color:C.dimHi, fontFamily: k==='ID операции' ? 'monospace' : 'inherit' }}>{v}</div>
@@ -1071,7 +1206,7 @@ export default function Dashboard() {
             <div style={{ background:C.card, borderRadius:16, padding:'14px 18px', border:`1px solid ${C.border}`, display:'flex', gap:10, alignItems:'flex-start' }}>
               <span style={{ fontSize:'0.9rem', flexShrink:0, marginTop:1 }}>🔒</span>
               <p style={{ fontSize:'0.78rem', color:C.dim, lineHeight:1.6, margin:0 }}>
-                Ваши действия на платформе не логируются и защищены сквозным шифрованием. Администрация Privax не имеет доступа к вашим ключам.
+                Ваши действия на платформе не логируются и защищены сквозным шифрованием. Администрация Tugoka не имеет доступа к вашим ключам.
               </p>
             </div>
           </div>

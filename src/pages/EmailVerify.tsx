@@ -125,11 +125,15 @@ export default function EmailVerify() {
         .digit-input.filled { border-color: ${C.green} !important; }
         .digit-input.error  { border-color: rgba(255,94,94,0.6) !important; }
         .shake              { animation: shake 0.4s ease; }
+        @media (max-width: 380px) {
+          .digit-input { width: 40px !important; height: 50px !important; font-size: 1.2rem !important; border-radius: 10px !important; }
+          .digits-row { gap: 6px !important; }
+        }
       `}</style>
 
 
-      <main style={{ flex: 1, maxWidth: 460, margin: '0 auto', width: '100%', padding: '72px 24px 80px' }}>
-        <div style={{ background: C.surface, borderRadius: 24, padding: '44px 36px', border: `1px solid ${C.border}`, animation: 'fadeUp 0.5s ease both', textAlign: 'center' }}>
+      <main style={{ flex: 1, maxWidth: 460, margin: '0 auto', width: '100%', padding: 'clamp(36px, 8vw, 72px) 16px 80px' }}>
+        <div style={{ background: C.surface, borderRadius: 24, padding: 'clamp(28px, 5vw, 44px) clamp(18px, 4vw, 36px)', border: `1px solid ${C.border}`, animation: 'fadeUp 0.5s ease both', textAlign: 'center' }}>
 
           <div style={{
             width: 68, height: 68,
@@ -160,7 +164,7 @@ export default function EmailVerify() {
 
           {!success && (
             <>
-              <div className={shaking ? 'shake' : ''} style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: error ? 12 : 24 }} onPaste={handlePaste}>
+              <div className={`digits-row ${shaking ? 'shake' : ''}`} style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: error ? 12 : 24 }} onPaste={handlePaste}>
                 {digits.map((digit, i) => (
                   <input key={i} ref={el => { inputRefs.current[i] = el }}
                     className={`digit-input${digit ? ' filled' : ''}${error ? ' error' : ''}`}

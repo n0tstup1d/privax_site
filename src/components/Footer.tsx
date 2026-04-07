@@ -21,7 +21,7 @@ export default function Footer() {
 
           {/* Бренд */}
           <div style={{ minWidth: 180 }}>
-            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: C.accent, letterSpacing: '0.06em', fontFamily: 'monospace', marginBottom: 12 }}>PRIVAX</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: C.accent, letterSpacing: '0.06em', fontFamily: 'monospace', marginBottom: 12 }}>TUGOKA</div>
             <div style={{ fontSize: '0.82rem', color: C.dim, lineHeight: 1.7, maxWidth: 230 }}>
               Надёжное шифрование трафика с нулевым логированием. Ваша цифровая личность защищена.
             </div>
@@ -57,8 +57,8 @@ export default function Footer() {
             <div>
               <div style={{ fontSize: '0.62rem', color: C.dim, letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 16 }}>Поддержка</div>
               {[
-                { label: 'Telegram', href: 'https://t.me/privax_support' },
-                { label: 'Email',    href: 'mailto:support@privax.ru' },
+                { label: 'Telegram', href: 'https://t.me/tugoka_support' },
+                { label: 'Email',    href: 'mailto:support@tugoka.ru' },
               ].map(i => (
                 <div key={i.label} style={{ marginBottom: 10 }}>
                   <a href={i.href} target="_blank" rel="noreferrer"
@@ -93,7 +93,7 @@ export default function Footer() {
         </div>
 
         <div className="footer-bottom" style={{ borderTop: `1px solid ${C.border}`, paddingTop: 24 }}>
-          <div style={{ fontSize: '0.75rem', color: C.dim }}>© {year} Privax Technologies. Все права защищены.</div>
+          <div style={{ fontSize: '0.75rem', color: C.dim }}>© {year} Tugoka. Все права защищены.</div>
         </div>
       </div>
     </footer>

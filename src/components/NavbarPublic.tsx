@@ -28,12 +28,10 @@ export default function NavbarPublic({ scrollEffect = false }: Props) {
     return () => window.removeEventListener('scroll', onScroll)
   }, [scrollEffect])
 
-  const navLinks = [
-    { label: 'Главная',      key: '/',       fn: () => navigate('/') },
-    { label: 'Тарифы',       key: '/plans',  fn: () => navigate('/plans') },
-    { label: 'Приложения',   key: '/apps',   fn: () => navigate('/apps') },
-    { label: 'Инструкции',    key: '/guides', fn: () => navigate('/guides') },
-    { label: 'Поддержка',    key: '/support', fn: () => navigate('/support') },
+  const navLinks: { label: string; key: string; fn: () => void }[] = [
+    { label: 'Тарифы',     key: '/plans',  fn: () => navigate('/plans') },
+    { label: 'Приложения', key: '/apps',   fn: () => navigate('/apps') },
+    { label: 'Вопросы',    key: '/faq',    fn: () => navigate('/faq') },
   ]
 
   return (
@@ -57,7 +55,7 @@ export default function NavbarPublic({ scrollEffect = false }: Props) {
         <div style={{ maxWidth: 1140, margin: '0 auto', padding: '0 20px', height: 66, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
           <span onClick={() => navigate('/')} style={{ fontSize: '1.25rem', fontWeight: 900, color: C.accent, letterSpacing: '0.06em', cursor: 'pointer', fontFamily: 'monospace' }}>
-            PRIVAX
+            TUGOKA
           </span>
 
           {/* Desktop links */}
@@ -75,14 +73,28 @@ export default function NavbarPublic({ scrollEffect = false }: Props) {
           {/* Desktop CTA */}
           <div className="npub-dt" style={{ gap: 10, alignItems: 'center' }}>
             <button onClick={() => navigate('/login')}
-              style={{ background: 'transparent', color: C.dimHi, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 18px', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit', transition: 'color 0.2s, border-color 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.color = C.accent; e.currentTarget.style.borderColor = C.borderHi }}
-              onMouseLeave={e => { e.currentTarget.style.color = C.dimHi; e.currentTarget.style.borderColor = C.border }}>
+              style={{
+                background: isActive('/login') ? C.green : 'transparent',
+                color: isActive('/login') ? C.bg : C.accent,
+                border: `1px solid ${isActive('/login') ? C.green : C.border}`,
+                borderRadius: 10, padding: '8px 20px',
+                fontSize: '0.82rem', fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'background 0.2s, border-color 0.2s, color 0.2s',
+              }}
+              onMouseEnter={e => {
+                if (!isActive('/login')) {
+                  e.currentTarget.style.borderColor = C.green
+                  e.currentTarget.style.color = C.green
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isActive('/login')) {
+                  e.currentTarget.style.borderColor = C.border
+                  e.currentTarget.style.color = C.accent
+                }
+              }}>
               Войти
-            </button>
-            <button onClick={() => navigate('/register')}
-              style={{ background: C.green, color: C.bg, border: 'none', borderRadius: 10, padding: '8px 18px', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit', boxShadow: `0 0 14px ${C.greenGlow}` }}>
-              Начать →
             </button>
           </div>
 
@@ -106,12 +118,15 @@ export default function NavbarPublic({ scrollEffect = false }: Props) {
             ))}
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button onClick={() => { navigate('/login'); setMenuOpen(false) }}
-                style={{ background: C.greenDim, color: C.green, border: `1px solid rgba(0,229,160,0.35)`, borderRadius: 12, padding: '13px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box', textAlign: 'center' }}>
+                style={{
+                  width: '100%',
+                  background: C.green, color: C.bg,
+                  border: 'none', borderRadius: 12,
+                  padding: '13px', fontSize: '0.9rem', fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  textAlign: 'center' as const,
+                }}>
                 Войти
-              </button>
-              <button onClick={() => { navigate('/register'); setMenuOpen(false) }}
-                style={{ background: C.green, color: C.bg, border: 'none', borderRadius: 12, padding: '13px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box', textAlign: 'center' }}>
-                Начать →
               </button>
             </div>
           </div>

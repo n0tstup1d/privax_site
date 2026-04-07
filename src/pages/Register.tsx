@@ -64,8 +64,12 @@ export default function Register() {
   const [searchParams] = useSearchParams()
   const refCode = searchParams.get('ref') || ''
 
+  // Без реф-ссылки — сразу на 404
   useEffect(() => {
-    // Сохраняем реф-код чтобы не терялся при навигации
+    if (!refCode) navigate('/404', { replace: true })
+  }, [])
+
+  useEffect(() => {
     if (refCode) localStorage.setItem('ref_code', refCode.toUpperCase())
   }, [refCode])
 
@@ -92,9 +96,8 @@ export default function Register() {
     if (!agreePrivacy) { setError('Необходимо принять политику конфиденциальности'); return }
     setLoading(true); setError('')
     try {
-      const body: Record<string, string> = { email, password }
       const savedRef = refCode || localStorage.getItem('ref_code') || ''
-      if (savedRef) body.ref_code = savedRef.toUpperCase()
+      const body: Record<string, string> = { email, password, ref_code: savedRef.toUpperCase() }
       const res  = await apiFetch('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -129,12 +132,12 @@ export default function Register() {
       `}</style>
 
       {/* Навбар */}
-      <nav style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '0 48px', height: 66, display: 'flex', alignItems: 'center' }}>
+      <nav style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '0 clamp(16px, 4vw, 48px)', height: 66, display: 'flex', alignItems: 'center' }}>
         <a href="/" style={{ fontSize: '1.2rem', fontWeight: 900, color: C.accent, textDecoration: 'none', letterSpacing: '0.06em', fontFamily: 'monospace' }}>PRIVAX</a>
       </nav>
 
       {/* Контент */}
-      <main style={{ maxWidth: 1000, margin: '0 auto', padding: '60px 24px 80px', display: 'flex', gap: 48, alignItems: 'flex-start', justifyContent: 'center' }}>
+      <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(24px, 6vw, 60px) clamp(16px, 4vw, 24px) 80px', display: 'flex', gap: 48, alignItems: 'flex-start', justifyContent: 'center' }}>
 
         {/* Левая колонка — преимущества (только десктоп) */}
         <div style={{ flex: 1, maxWidth: 380, paddingTop: 16, display: 'none' }} className="reg-perks">
@@ -159,7 +162,7 @@ export default function Register() {
 
         {/* Форма */}
         <div style={{ width: '100%', maxWidth: 440, animation: 'fadeUp 0.5s ease both' }}>
-          <div style={{ background: C.surface, borderRadius: 24, padding: '40px 36px', border: `1px solid ${C.border}` }}>
+          <div style={{ background: C.surface, borderRadius: 24, padding: 'clamp(24px, 5vw, 40px) clamp(18px, 4vw, 36px)', border: `1px solid ${C.border}` }}>
 
             <div style={{ marginBottom: 28 }}>
               <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: C.accent, marginBottom: 6, letterSpacing: '-0.01em' }}>Создать аккаунт</h1>
@@ -171,7 +174,7 @@ export default function Register() {
               <div style={{ background: C.greenDim, border: `1px solid rgba(0,229,160,0.25)`, borderRadius: 12, padding: '11px 15px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: '1rem' }}>🔗</span>
                 <div>
-                  <div style={{ fontSize: '0.83rem', fontWeight: 700, color: C.green }}>Вас пригласили в Privax — скидка 15% на первый заказ</div>
+                  <div style={{ fontSize: '0.83rem', fontWeight: 700, color: C.green }}>Вас пригласили в Privax — скидка 10% на первый заказ</div>
                   <div style={{ fontSize: '0.75rem', color: C.dimHi }}>Код приглашения: <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{refCode.toUpperCase()}</span></div>
                 </div>
               </div>

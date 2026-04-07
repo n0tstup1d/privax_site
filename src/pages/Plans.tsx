@@ -439,6 +439,68 @@ export default function Plans() {
         @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
         .plan-row { transition: background 0.15s; }
         .plan-row:hover { background: rgba(255,255,255,0.025) !important; }
+        @media (max-width: 520px) {
+          .plan-row {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+            padding: 16px 16px !important;
+          }
+          .plan-row-price {
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            gap: 12px !important;
+          }
+          .plan-row-price > div:first-child {
+            text-align: left !important;
+          }
+          .plan-row-btn {
+            width: auto !important;
+            flex: 1 !important;
+            max-width: 140px !important;
+          }
+          .plan-tier-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 4px !important;
+            padding: 14px 16px !important;
+          }
+          .plan-tier-header span:last-child {
+            font-size: 0.7rem !important;
+          }
+          .plan-included-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .plan-included-item {
+            border-right: none !important;
+          }
+          .plan-included-os {
+            flex-wrap: wrap !important;
+            padding: 12px 16px !important;
+          }
+          .plan-ref-banner {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+            padding: 14px 16px !important;
+          }
+          .plan-ref-banner button {
+            width: 100% !important;
+            text-align: center !important;
+            justify-content: center !important;
+          }
+          .plan-cta-banner {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+            text-align: center !important;
+          }
+          .plan-cta-banner button {
+            width: 100% !important;
+          }
+        }
       `}</style>
 
       {selPlan && <BuyModal plan={selPlan} tierIndex={selTierIdx} balance={balance} isReferred={isReferred} onConfirm={handleBuy} onClose={() => { setSelPlan(null); setBuyError('') }} loading={buyLoading} error={buyError} />}
@@ -469,7 +531,7 @@ export default function Plans() {
 
         {/* Реферальный баннер — показываем только если есть скидка */}
         {isReferred && (
-          <div style={{ background:C.greenDim, border:`1px solid rgba(0,229,160,0.3)`, borderRadius:16, padding:'16px 20px', marginBottom:28, display:'flex', alignItems:'center', gap:14, boxShadow:`0 0 24px rgba(0,229,160,0.08)` }}>
+          <div className="plan-ref-banner" style={{ background:C.greenDim, border:`1px solid rgba(0,229,160,0.3)`, borderRadius:16, padding:'16px 20px', marginBottom:28, display:'flex', alignItems:'center', gap:14, boxShadow:`0 0 24px rgba(0,229,160,0.08)` }}>
             <div style={{ width:40, height:40, borderRadius:12, background:'rgba(0,229,160,0.15)', border:`1px solid rgba(0,229,160,0.25)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.2rem', flexShrink:0 }}>🎁</div>
             <div>
               <div style={{ fontSize:'0.92rem', fontWeight:800, color:C.green, marginBottom:3 }}>Скидка 15% на первый заказ применена</div>
@@ -501,7 +563,7 @@ export default function Plans() {
               return (
                 <div key={tierLevel} style={{ marginBottom:16 }}>
                   {/* Тир-заголовок */}
-                  <div style={{ background:C.surface, borderRadius:'16px 16px 0 0', padding:'16px 22px', border:`1px solid ${C.border}`, borderBottom:'none', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <div className="plan-tier-header" style={{ background:C.surface, borderRadius:'16px 16px 0 0', padding:'16px 22px', border:`1px solid ${C.border}`, borderBottom:'none', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                       <div style={{ width:8, height:8, borderRadius:'50%', background:color, boxShadow:`0 0 8px ${glow}`, flexShrink:0 }} />
                       <span style={{ fontSize:'0.88rem', fontWeight:800, color }}>{tierName}</span>
@@ -558,7 +620,8 @@ export default function Plans() {
                             </div>
                           </div>
 
-                          {/* Цена */}
+                          {/* Цена + Кнопка */}
+                          <div className="plan-row-price" style={{ display:'flex', alignItems:'center', gap:16, flexShrink:0 }}>
                           <div style={{ textAlign:'right', flexShrink:0 }}>
                             {(hasSale || refApplies) && (
                               <div style={{ fontSize:'0.72rem', color:C.dim, textDecoration:'line-through', marginBottom:1 }}>
@@ -576,7 +639,7 @@ export default function Plans() {
                           </div>
 
                           {/* Кнопка */}
-                          <button disabled={unavailable}
+                          <button className="plan-row-btn" disabled={unavailable}
                             onClick={() => {
                               if (!isLoggedIn) { navigate('/login'); return }
                               setSelTierIdx(ti); setSelPlan(plan); setBuyError('')
@@ -586,6 +649,7 @@ export default function Plans() {
                             onMouseLeave={e => { if(!unavailable){ e.currentTarget.style.background='transparent'; e.currentTarget.style.boxShadow=`0 0 10px ${glow}` }}}>
                             {unavailable ? 'Занято' : 'Выбрать'}
                           </button>
+                          </div>
                         </div>
                       )
                     })}
@@ -600,7 +664,7 @@ export default function Plans() {
                 <span style={{ width:6, height:6, borderRadius:'50%', background:C.green, display:'block', boxShadow:`0 0 6px ${C.greenGlow}` }} />
                 <span style={{ fontSize:'0.72rem', color:C.dimHi, letterSpacing:'0.18em', textTransform:'uppercase', fontWeight:700 }}>Включено в каждый тариф</span>
               </div>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(260px, 1fr))" }}>
+              <div className="plan-included-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(260px, 1fr))" }}>
                 {included.map((f, i) => {
                   const isLast = i === included.length - 1
                   const isOdd = included.length % 2 !== 0
@@ -608,7 +672,7 @@ export default function Plans() {
                   const noRight = i % 2 !== 0 || included.length === 1
                   if ((f as any).isOS) {
                     return (
-                      <div key={i} style={{ gridColumn:"1 / -1", display:"flex", alignItems:"center", gap:14, padding:"14px 22px", borderTop:`1px solid ${C.border}`, flexWrap:"wrap" as const }}>
+                      <div key={i} className="plan-included-os" style={{ gridColumn:"1 / -1", display:"flex", alignItems:"center", gap:14, padding:"14px 22px", borderTop:`1px solid ${C.border}`, flexWrap:"wrap" as const }}>
                         {[
                           { label:"iOS", icon:(<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.28.04-2.22-1.32-3.06-2.55C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>) },
                           { label:"Android", icon:(<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 15.341a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-9.046 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM2.405 8.1l1.97-3.41a.5.5 0 0 1 .866.5l-1.97 3.41A.5.5 0 0 1 2.405 8.1zm19.19 0a.5.5 0 0 1-.866-.5l-1.97-3.41a.5.5 0 1 1 .866-.5l1.97 3.41zM16.55 3.24l-1.14 1.97a6.5 6.5 0 0 0-6.82 0L7.45 3.24a.5.5 0 1 0-.866.5l1.12 1.94A6.5 6.5 0 0 0 5.5 10.5v1A1.5 1.5 0 0 0 7 13h10a1.5 1.5 0 0 0 1.5-1.5v-1a6.5 6.5 0 0 0-2.206-4.818l1.12-1.942a.5.5 0 1 0-.866-.5z"/></svg>) },
@@ -625,7 +689,7 @@ export default function Plans() {
                     )
                   }
                   return (
-                    <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"13px 22px", borderBottom: noBottom ? "none" : `1px solid ${C.border}`, borderRight: noRight ? "none" : `1px solid ${C.border}` }}>
+                    <div key={i} className="plan-included-item" style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"13px 22px", borderBottom: noBottom ? "none" : `1px solid ${C.border}`, borderRight: noRight ? "none" : `1px solid ${C.border}` }}>
                       <span style={{ color:C.green, flexShrink:0, marginTop:1, display:"flex", alignItems:"center" }}>{f.icon}</span>
                       <span style={{ fontSize:"0.82rem", color:C.dimHi, lineHeight:1.5 }}>{f.text}</span>
                     </div>
@@ -636,7 +700,7 @@ export default function Plans() {
 
             {/* Не авторизован — призыв */}
             {!isLoggedIn && (
-              <div style={{ marginTop:20, background:C.greenDim, border:`1px solid rgba(0,229,160,0.2)`, borderRadius:16, padding:'18px 22px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, flexWrap:'wrap' }}>
+              <div className="plan-cta-banner" style={{ marginTop:20, background:C.greenDim, border:`1px solid rgba(0,229,160,0.2)`, borderRadius:16, padding:'18px 22px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, flexWrap:'wrap' }}>
                 <div>
                   <div style={{ fontSize:'0.88rem', fontWeight:700, color:C.accent, marginBottom:3 }}>Для активации необходим аккаунт</div>
                   <div style={{ fontSize:'0.78rem', color:C.dim }}>Регистрация занимает меньше минуты</div>
